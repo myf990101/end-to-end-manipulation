@@ -49,15 +49,12 @@ class RolloutStorage:
         self.privileged_obs_shape = privileged_obs_shape
         self.rnd_state_shape = rnd_state_shape
         self.actions_shape = actions_shape
-        self.privileged_obs_shape = [3, 150, 200]
-        # Core
-        obs_shape = (3, 150, 200)
-        self.observations = torch.zeros(num_transitions_per_env, num_envs, *obs_shape, device=self.device)
 
-        # self.observations = torch.zeros(num_transitions_per_env, num_envs, *obs_shape, device=self.device)
+        # Core
+        self.observations = torch.zeros(num_transitions_per_env, num_envs, *obs_shape, device=self.device)
         if privileged_obs_shape is not None:
             self.privileged_observations = torch.zeros(
-                num_transitions_per_env, num_envs, *self.privileged_obs_shape, device=self.device
+                num_transitions_per_env, num_envs, *privileged_obs_shape, device=self.device
             )
         else:
             self.privileged_observations = None
@@ -95,13 +92,8 @@ class RolloutStorage:
             raise OverflowError("Rollout buffer overflow! You should call clear() before adding new transitions.")
 
         # Core
-        # print("storage obs shape:", self.observations[self.step].shape)
-        # print("transition obs shape:", transition.observations.shape)
-        if transition.observations.shape[-1] == 3:
-            transition.observations = transition.observations.permute(0, 3, 1, 2).contiguous()
         self.observations[self.step].copy_(transition.observations)
         if self.privileged_observations is not None:
-            transition.privileged_observations = transition.privileged_observations.permute(0, 3, 1, 2).contiguous()
             self.privileged_observations[self.step].copy_(transition.privileged_observations)
         self.actions[self.step].copy_(transition.actions)
         self.rewards[self.step].copy_(transition.rewards.view(-1, 1))

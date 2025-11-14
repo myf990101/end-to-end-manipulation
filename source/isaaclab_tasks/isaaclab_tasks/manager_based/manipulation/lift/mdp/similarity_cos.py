@@ -43,62 +43,62 @@ import cv2
 # quat = r.as_quat()
 # print(quat)
 
-# def cosine_similarity_rgb(img1_path, img2_path):
-#     img1 = cv2.imread(img1_path).astype(np.float32)
-#     img2 = cv2.imread(img2_path).astype(np.float32)
-#     img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
+def cosine_similarity_rgb(img1_path, img2_path):
+    img1 = cv2.imread(img1_path).astype(np.float32)
+    img2 = cv2.imread(img2_path).astype(np.float32)
+    img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
 
-#     # 展开为向量（包含RGB通道）
-#     vec1 = img1.flatten()
-#     vec2 = img2.flatten()
+    # 展开为向量（包含RGB通道）
+    vec1 = img1.flatten()
+    vec2 = img2.flatten()
 
-#     sim = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
-#     return sim
+    sim = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+    return sim
 
-# print(cosine_similarity_rgb("/home/roborock/shitou/capture.2025-10-27 19.51.04.png", "/home/roborock/下载/camerareal1.png"))
-import numpy as np
+print(cosine_similarity_rgb("/home/roborock/shitou/capture.2025-11-12 10.04.21.png", "/home/roborock/下载/gripper.png"))
+# import numpy as np
 
-# 旋转矩阵 OpenGL convention
-R_gl = np.array([
-    [-0.00746558,  -0.99997,    -0.00213321],
-    [ 0.0409204,    0.00182598, -0.999161],
-    [ 0.999135,    -0.00754661,  0.0409056]
-])
+# # 旋转矩阵 OpenGL convention
+# R_gl = np.array([
+#     [0.003874  ,-0.004015,    0.999984],
+#     [ -0.999947,-0.009508, 0.003835   ],
+#     [ 0.00492  ,-0.999947,  -0.004052 ]
+# ])
 
-# 将旋转矩阵转换为四元数 (w, x, y, z)
-def rotmat_to_quat(R):
-    trace = R[0,0] + R[1,1] + R[2,2]
-    if trace > 0:
-        s = 0.5 / np.sqrt(trace + 1.0)
-        w = 0.25 / s
-        x = (R[2,1] - R[1,2]) * s
-        y = (R[0,2] - R[2,0]) * s
-        z = (R[1,0] - R[0,1]) * s
-    else:
-        if R[0,0] > R[1,1] and R[0,0] > R[2,2]:
-            s = 2.0 * np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2])
-            w = (R[2,1] - R[1,2]) / s
-            x = 0.25 * s
-            y = (R[0,1] + R[1,0]) / s
-            z = (R[0,2] + R[2,0]) / s
-        elif R[1,1] > R[2,2]:
-            s = 2.0 * np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2])
-            w = (R[0,2] - R[2,0]) / s
-            x = (R[0,1] + R[1,0]) / s
-            y = 0.25 * s
-            z = (R[1,2] + R[2,1]) / s
-        else:
-            s = 2.0 * np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1])
-            w = (R[1,0] - R[0,1]) / s
-            x = (R[0,2] + R[2,0]) / s
-            y = (R[1,2] + R[2,1]) / s
-            z = 0.25 * s
-    return np.array([w, x, y, z])
+# # 将旋转矩阵转换为四元数 (w, x, y, z)
+# def rotmat_to_quat(R):
+#     trace = R[0,0] + R[1,1] + R[2,2]
+#     if trace > 0:
+#         s = 0.5 / np.sqrt(trace + 1.0)
+#         w = 0.25 / s
+#         x = (R[2,1] - R[1,2]) * s
+#         y = (R[0,2] - R[2,0]) * s
+#         z = (R[1,0] - R[0,1]) * s
+#     else:
+#         if R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+#             s = 2.0 * np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2])
+#             w = (R[2,1] - R[1,2]) / s
+#             x = 0.25 * s
+#             y = (R[0,1] + R[1,0]) / s
+#             z = (R[0,2] + R[2,0]) / s
+#         elif R[1,1] > R[2,2]:
+#             s = 2.0 * np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2])
+#             w = (R[0,2] - R[2,0]) / s
+#             x = (R[0,1] + R[1,0]) / s
+#             y = 0.25 * s
+#             z = (R[1,2] + R[2,1]) / s
+#         else:
+#             s = 2.0 * np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1])
+#             w = (R[1,0] - R[0,1]) / s
+#             x = (R[0,2] + R[2,0]) / s
+#             y = (R[1,2] + R[2,1]) / s
+#             z = 0.25 * s
+#     return np.array([w, x, y, z])
 
-# 转四元数
-q_gl = rotmat_to_quat(R_gl)
+# # 转四元数
+# q_gl = rotmat_to_quat(R_gl)
+# print("Isaac Sim 四元数 (w,x,y,z):", q_gl)
+# # OpenGL -> Isaac convention: q_isaac = (w, x, -z, y)
+# q_isaac = np.array([q_gl[0], q_gl[1], -q_gl[3], q_gl[2]])
 
-# OpenGL -> Isaac convention: q_isaac = (w, x, -z, y)
-q_isaac = np.array([q_gl[0], q_gl[1], -q_gl[3], q_gl[2]])
-
-print("Isaac Sim 四元数 (w,x,y,z):", q_isaac)
+# print("Isaac Sim 四元数 (w,x,y,z):", q_isaac)

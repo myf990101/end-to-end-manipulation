@@ -28,7 +28,6 @@ class OnPolicyRunner:
     """On-policy runner for training and evaluation."""
 
     def __init__(self, env: VecEnv, train_cfg: dict, log_dir: str | None = None, device="cpu"):
-        print("5555")
         self.cfg = train_cfg
         self.alg_cfg = train_cfg["algorithm"]
         self.policy_cfg = train_cfg["policy"]
@@ -192,7 +191,7 @@ class OnPolicyRunner:
             self.alg.broadcast_parameters()
             # TODO: Do we need to synchronize empirical normalizers?
             #   Right now: No, because they all should converge to the same values "asymptotically".
-        print ("training")
+
         # Start training
         start_iter = self.current_learning_iteration
         tot_iter = start_iter + num_learning_iterations
@@ -202,13 +201,10 @@ class OnPolicyRunner:
             # Rollout
             with torch.inference_mode():
                 for _ in range(self.num_steps_per_env):
-                    # if not self.is_distributed or self.gpu_global_rank == 0:
-                    #     print(f"[Step {_}] Action sample: {actions[0].cpu().numpy()}", flush=True)
                     # Sample actions
                     actions = self.alg.act(obs, privileged_obs)
                     # Step the environment
                     obs, rewards, dones, infos = self.env.step(actions.to(self.env.device))
-                    
                     # Move to device
                     obs, rewards, dones = (obs.to(self.device), rewards.to(self.device), dones.to(self.device))
                     # perform normalization
@@ -294,8 +290,6 @@ class OnPolicyRunner:
 
     def log(self, locs: dict, width: int = 80, pad: int = 35):
         # Compute the collection size
-        import pdb
-        pdb.set_trace()
         collection_size = self.num_steps_per_env * self.env.num_envs * self.gpu_world_size
         # Update total time-steps and time
         self.tot_timesteps += collection_size
@@ -466,12 +460,9 @@ class OnPolicyRunner:
         if device is not None:
             self.alg.policy.to(device)
         policy = self.alg.policy.act_inference
-        print("222")
         if self.cfg["empirical_normalization"]:
-            print("333")
             if device is not None:
                 self.obs_normalizer.to(device)
-                print("444")
             policy = lambda x: self.alg.policy.act_inference(self.obs_normalizer(x))  # noqa: E731
         return policy
 

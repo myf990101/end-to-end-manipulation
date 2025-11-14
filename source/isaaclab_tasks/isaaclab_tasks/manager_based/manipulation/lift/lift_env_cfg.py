@@ -23,7 +23,8 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.sensors import TiledCameraCfg,CameraCfg
 
 from . import mdp
-
+import torch
+import torch.nn as nn
 ##
 # Scene definition
 ##
@@ -121,16 +122,41 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         height=600,
     )
 
-    # tiled_camera2: TiledCameraCfg = TiledCameraCfg(
-    #     prim_path="{ENV_REGEX_NS}/Camera_2",
-    #     offset=TiledCameraCfg.OffsetCfg(pos=(1.3, 0.0, 0.9), rot=((0.63281, 0.31551, 0.31551, 0.63281)), convention="opengl"),
-    #     data_types=["rgb"],
-    #     spawn=sim_utils.PinholeCameraCfg(
-    #         focal_length=38.3, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
-    #     ),
-    #     width=1000,
-    #     height=800,
-    # )
+    depth_camera: TiledCameraCfg = TiledCameraCfg(
+        # prim_path="{ENV_REGEX_NS}/depth_camera",
+        prim_path="{ENV_REGEX_NS}/Robot/depth_camera",
+        # offset=TiledCameraCfg.OffsetCfg(pos=(0.162, -0.0293681, 0.075), rot=((0.4912, 0.50865, -0.50865, -0.4912)), convention="opengl"),
+        # offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=((1.0, 0.0, 0.0, 0.0)), convention="opengl"),
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.16545, 0.0, 0.0578), rot=((0.7071, 0.7071, 0.0, 0.0)), convention="opengl"),
+        data_types=["distance_to_image_plane"],  # Key change to depth
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=16.7, focus_distance=400.0, horizontal_aperture=36, vertical_aperture=25.45,
+        ),
+        width=400,
+        height=300,
+        debug_vis=False,
+        # update_period=0.2,
+    )
+
+    gripper_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/M5_wrist_link/gripper_camera",
+        offset=TiledCameraCfg.OffsetCfg(
+            pos=(0.06151, 0.00255, -0.0055),
+            rot=((0.8944, 0.0, -0.4472, 0.0)),
+            convention="opengl"
+        ),
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=8.0, 
+            focus_distance=200.0, 
+            horizontal_aperture=36, 
+            vertical_aperture=25.45,
+            
+        ),
+        width=400,
+        height=300,
+        debug_vis=False
+    )
 
 
 
@@ -222,7 +248,7 @@ class RGBObservationsCfg:
     class RGBCameraPolicyCfg(ObsGroup):
         """Observations for policy group with RGB images."""
 
-        image = ObsTerm(func=mdp.image, params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb"})
+        image = ObsTerm(func=mdp.image_features, params={"sensor_cfg": SceneEntityCfg("gripper_camera"), "data_type": "rgb"})
 
         def __post_init__(self):
             self.enable_corruption = False
@@ -230,20 +256,6 @@ class RGBObservationsCfg:
 
     policy: ObsGroup = RGBCameraPolicyCfg()
 
-
-@configclass
-class DepthObservationsCfg:
-    """Observation specifications for the MDP."""
-
-    @configclass
-    class DepthCameraPolicyCfg(ObsGroup):
-        """Observations for policy group with depth images."""
-
-        image = ObsTerm(
-            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("table_cam"), "data_type": "distance_to_camera"}
-        )
-
-    policy: ObsGroup = DepthCameraPolicyCfg()
 
 
 @configclass
@@ -254,26 +266,11 @@ class ResNet18ObservationCfg:
     class ResNet18FeaturesCameraPolicyCfg(ObsGroup):
         """Observations for policy group with features extracted from RGB images with a frozen ResNet18."""
 
-        # joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        # joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        # object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
-        # target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "object_pose"})
-        # actions = ObsTerm(func=mdp.last_action)
+
         image = ObsTerm(
-            func=mdp.image,
-            params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb"},
+            func=mdp.image_features,
+            params={"sensor_cfg": SceneEntityCfg("gripper_camera"), "data_type": "rgb","model_name": "resnet18","depth_cfg":SceneEntityCfg("depth_camera")},
         )
-
-        # image = ObsTerm(
-        #     func=mdp.image_features,
-        #     params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb","model_name": "resnet18"}
-        # )
-
-        # joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-
-        # def __post_init__(self):
-        #     self.enable_corruption = False
-        #     self.concatenate_terms = False
 
     policy: ObsGroup = ResNet18FeaturesCameraPolicyCfg()
 

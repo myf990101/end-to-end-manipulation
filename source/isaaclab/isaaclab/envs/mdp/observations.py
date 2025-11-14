@@ -24,6 +24,10 @@ import numpy as np
 import cv2
 import os
 import time
+from isaaclab.pointnet.models.pointnet_utils import PointNetEncoder, feature_transform_reguliarzer
+import importlib
+from isaaclab.pointnet.log.classification.pointnet2_ssg_wo_normals.pointnet2_cls_ssg import get_model as PointNet2ClsMsg
+import open3d as o3d
 import torch.nn.functional as F
 
 if TYPE_CHECKING:
@@ -249,10 +253,11 @@ def imu_lin_acc(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg
 def image(
     env: ManagerBasedEnv,
     # cnt: int = 0,
-    sensor_cfg: SceneEntityCfg = SceneEntityCfg("tiled_camera"),
+    sensor_cfg: SceneEntityCfg = SceneEntityCfg("gripper_camera"),
     data_type: str = "rgb",
     convert_perspective_to_orthogonal: bool = False,
     normalize: bool = True,
+    depth_cfg:SceneEntityCfg = SceneEntityCfg("depth_camera")
 ) -> torch.Tensor:
     """Images of a specific datatype from the camera sensor.
 
@@ -287,7 +292,7 @@ def image(
     # img_tensor = torch.from_numpy(img_rgb).float()  # shape: (H, W, 3), float32
  
     # img_tensor = img_tensor / 255.0
-  
+    depth = env.scene.sensors[depth_cfg.name].data.output["distance_to_image_plane"]
     # img_tensor = img_tensor.permute(2, 0, 1)
 
     # # 6. Add batch dimension -> (1, C, H, W)
@@ -329,7 +334,7 @@ def image(
             # print(images.shape)
             images = images  / 255.0
             images = images.permute(0, 3, 1, 2)
-            target_size = (150, 200)  # (height, width)
+            target_size = (300, 400)  # (height, width)
             images = F.interpolate(images, size=target_size, mode="bilinear", align_corners=False)
         # # resize 到目标分辨率 (150, 200)
         #     
@@ -359,6 +364,7 @@ def image(
             pass
         elif "distance_to" in data_type or "depth" in data_type:
             images[images == float("inf")] = 0
+    images = torch.cat((images,depth),dim=-1)
     # print(f"输入图像 {images}")
     return images.clone()
 
@@ -453,6 +459,15 @@ class image_features(ManagerTermBase):
         self._model = model_config["model"]()
         self._reset_fn = model_config.get("reset")
         self._inference_fn = model_config["inference"]
+        self._prepare_pointnet_model()
+        # self.fx, self.fy = 525.0, 525.0
+        # self.cx, self.cy = 319.5, 239.5
+
+        self.fx, self.fy = 117.78, 124.95
+        self.cx, self.cy = 200.0, 150.0
+
+        self._frame_counter = 0
+
 
     def reset(self, env_ids: torch.Tensor | None = None):
         # reset the model if a reset function is provided
@@ -461,10 +476,227 @@ class image_features(ManagerTermBase):
         if self._reset_fn is not None:
             self._reset_fn(self._model, env_ids)
 
+    def depth_to_pointcloud(self,depth_image, fx, fy, cx, cy, rgb_image=None, output_path="pointcloud.ply"):
+        """
+        将深度图转换为点云（可选带颜色）
+        
+        参数:
+            depth_image : np.ndarray
+                深度图（H, W），单位为米。
+            fx, fy, cx, cy : float
+                相机内参。
+            rgb_image : np.ndarray, optional
+                彩色图（H, W, 3），与深度图对齐。
+            output_path : str
+                点云保存路径。
+        """
+        assert len(depth_image.shape) == 2, "深度图必须是单通道 (H, W)"
+        height, width = depth_image.shape
+        u, v = np.meshgrid(np.arange(width), np.arange(height))
+        
+        # 深度图中无效值置0（避免NaN）
+        depth = np.nan_to_num(depth_image, nan=0.0)
+        # depth = (depth.max() - depth)
+        # print(depth_image.dtype)
+        # print("min, max, median:", np.nanmin(depth_image), np.nanmax(depth_image), np.nanmedian(depth_image))
+        # print("non-zero fraction:", np.count_nonzero(~np.isnan(depth_image) & (depth_image!=0)) / depth_image.size)
+        mask = depth > 0  # 有效深度
+        
+        # 反投影到3D空间
+        Z = depth[mask]
+        X = (u[mask] - cx) * Z / fx
+        Y = (v[mask] - cy) * Z / fy
+        points = np.stack((X, -Y, Z), axis=-1)
+
+        def save_ply(points, colors=None, output_path="pointcloud.ply"):
+            """
+            保存点云为 PLY 文件
+            参数:
+                points: (N, 3) numpy 数组
+                colors: (N, 3) numpy 数组 (0~255 或 0~1)
+                output_path: 输出文件路径
+            """
+            # 创建 open3d 点云对象
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
+            if colors is not None:
+                if colors.max() > 1.0:
+                    colors = colors / 255.0  # 归一化到 [0,1]
+                pcd.colors = o3d.utility.Vector3dVector(colors)
+
+            # 保存为 PLY 文件
+            o3d.io.write_point_cloud(output_path, pcd)
+            print(f"✅ 点云已保存到: {output_path}")
+        
+        # save_ply(points, colors=None, output_path=output_path.replace(".ply","_0.ply"))
+        theta = np.deg2rad(0.5)
+        R_x = np.array([
+            [1, 0, 0],
+            [0, np.cos(theta), -np.sin(theta)],
+            [0, np.sin(theta),  np.cos(theta)]
+        ])
+
+        rotated_points = points @ R_x.T
+        # save_ply(rotated_points, colors=None, output_path=output_path.replace(".ply","_1.ply"))
+        # save_ply(points, colors=None, output_path=output_path)
+        # ===== 距离筛选部分 =====
+        points = rotated_points[rotated_points[:,2]<0.16]
+        points = points[points[:,1]>-0.05]
+
+        def voxel_down_sample_fixed(points, voxel_size=2.0, num_points=1024, seed=None):
+            """
+            对点云进行体素下采样，并确保输出固定数量的点。
+
+            参数:
+                points: np.ndarray, shape [N, 3]
+                voxel_size: float, 体素大小
+                num_points: int, 输出固定点数
+                seed: int or None, 随机种子（可选）
+
+            返回:
+                down_points: np.ndarray, shape [num_points, 3]
+            """
+            if len(points) == 0:
+                # 返回一个全零点云（或可选 raise）
+                return np.zeros((num_points, 3), dtype=np.float32)
+
+            if seed is not None:
+                np.random.seed(seed)
+
+            decay_rate = voxel_size / 2.0
+            dist = np.linalg.norm(points, axis=1)
+            p = np.exp(-dist / decay_rate)   # 近处概率大
+            p /= p.sum()
+
+            # ✅ 修复点：若点数不足，则允许放回采样
+            replace_flag = len(points) < num_points
+            indices = np.random.choice(len(points), num_points, replace=replace_flag, p=p)
+            down_points = points[indices]
+
+            # ✅ 第二步其实可以省略，但如果你想保持逻辑清晰：
+            N = down_points.shape[0]
+            if N < num_points:
+                extra_indices = np.random.choice(N, num_points - N, replace=True)
+                down_points = np.concatenate([down_points, down_points[extra_indices]], axis=0)
+
+            return down_points
+                
+        points = voxel_down_sample_fixed(points, voxel_size=2.0)
+        # save_ply(points, colors=None, output_path=output_path.replace(".ply","_downsampled8.ply"))
+        return points
+    
+
+    # GPU-accelerated version for batch processing
+    def depth_to_pointcloud_batch_gpu(self, depth_batch, fx, fy, cx, cy, num_points=1024, 
+                                      save_ply_debug=False, env_id=0, frame_counter=None, save_dir="debug_pointclouds"):
+        """GPU-accelerated batch point cloud generation with systematic PLY saving."""
+        import os
+        B, H, W = depth_batch.shape
+        device = depth_batch.device
+
+        # Setup save directory if debugging
+        if save_ply_debug:
+            env_dir = os.path.join(save_dir, f"env_{env_id}")
+            os.makedirs(env_dir, exist_ok=True)
+
+            # Use frame counter or fallback to timestamp
+            if frame_counter is not None:
+                prefix = f"frame_{frame_counter:06d}"
+            else:
+                import time
+                prefix = f"time_{int(time.time() * 1000)}"
+
+        # Helper function to save PLY files
+        def save_ply(points_np, stage_name):
+            """Save point cloud as PLY file."""
+            if save_ply_debug and env_id < B:
+                filepath = os.path.join(env_dir, f"{prefix}_{stage_name}.ply")
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(points_np)
+                o3d.io.write_point_cloud(filepath, pcd)
+                print(f"✅ Saved: {filepath}")
+
+        # Create pixel grid on GPU
+        v_coords = torch.arange(H, device=device, dtype=torch.float32)
+        u_coords = torch.arange(W, device=device, dtype=torch.float32)
+        v, u = torch.meshgrid(v_coords, u_coords, indexing='ij')
+
+        # Expand to batch
+        u = u.unsqueeze(0).expand(B, -1, -1)
+        v = v.unsqueeze(0).expand(B, -1, -1)
+
+        # Back-project to 3D
+        Z = depth_batch
+        X = (u - cx) * Z / fx
+        Y = (v - cy) * Z / fy
+        points = torch.stack([X, -Y, Z], dim=-1)
+
+        # Save Stage 0: Initial projection
+        if save_ply_debug:
+            points_initial = points[env_id].reshape(-1, 3).cpu().numpy()
+            save_ply(points_initial, "0_initial")
+
+        # Apply rotation (0.5 degrees)
+        theta = torch.deg2rad(torch.tensor(0.5, device=device))
+        cos_theta = torch.cos(theta)
+        sin_theta = torch.sin(theta)
+        R_x = torch.tensor([
+            [1, 0, 0],
+            [0, cos_theta, -sin_theta],
+            [0, sin_theta, cos_theta]
+        ], device=device, dtype=torch.float32)
+
+        points_flat = points.reshape(B, H * W, 3)
+        rotated_points = torch.matmul(points_flat, R_x.T)
+
+        # Save Stage 1: After rotation
+        if save_ply_debug:
+            points_rotated = rotated_points[env_id].cpu().numpy()
+            save_ply(points_rotated, "1_rotated")
+
+        # Apply distance filtering
+        mask1 = rotated_points[:, :, 2] < 0.16
+        mask2 = rotated_points[:, :, 1] > -0.05
+        mask = mask1 & mask2
+
+        # Save Stage 2: After filtering
+        if save_ply_debug:
+            points_filtered = rotated_points[env_id][mask[env_id]].cpu().numpy()
+            save_ply(points_filtered, "2_filtered")
+
+        # Sample fixed number of points
+        sampled_points = []
+        for b in range(B):
+            valid_points = rotated_points[b][mask[b]]
+
+            if len(valid_points) == 0:
+                sampled_points.append(torch.zeros(num_points, 3, device=device))
+            elif len(valid_points) >= num_points:
+                dist = torch.norm(valid_points, dim=1)
+                weights = torch.exp(-dist / 1.0)
+                weights = weights / weights.sum()
+                indices = torch.multinomial(weights, num_points, replacement=False)
+                sampled_points.append(valid_points[indices])
+            else:
+                indices = torch.randint(0, len(valid_points), (num_points,), device=device)
+                sampled_points.append(valid_points[indices])
+
+        result = torch.stack(sampled_points, dim=0)
+
+        # Save Stage 3: Final downsampled
+        if save_ply_debug:
+            points_final = result[env_id].cpu().numpy()
+            save_ply(points_final, "3_downsampled")
+
+        return result
+
+
     def __call__(
         self,
         env: ManagerBasedEnv,
-        sensor_cfg: SceneEntityCfg = SceneEntityCfg("tiled_camera"),
+        sensor_cfg: SceneEntityCfg = SceneEntityCfg("gripper_camera"),
+        depth_cfg: SceneEntityCfg = SceneEntityCfg("depth_camera"),
         data_type: str = "rgb",
         convert_perspective_to_orthogonal: bool = False,
         model_zoo_cfg: dict | None = None,
@@ -473,24 +705,55 @@ class image_features(ManagerTermBase):
         inference_kwargs: dict | None = None,
     ) -> torch.Tensor:
         # obtain the images from the sensor
-        image_data = image(
-            env=env,
-            sensor_cfg=sensor_cfg,
-            data_type=data_type,
-            convert_perspective_to_orthogonal=convert_perspective_to_orthogonal,
-            normalize=False,  # we pre-process based on model
-        )
+        # image_data = image(
+        #     env=env,
+        #     sensor_cfg=sensor_cfg,
+        #     data_type=data_type,
+        #     convert_perspective_to_orthogonal=convert_perspective_to_orthogonal,
+        #     normalize=False,  # we pre-process based on model
+        # )
+        sensor: TiledCamera | Camera | RayCasterCamera = env.scene.sensors[sensor_cfg.name]
+
+    # obtain the input image
+        images = sensor.data.output[data_type]
         # store the device of the image
-        image_device = image_data.device
+        image_device = images.device
         # forward the images through the model
-        features = self._inference_fn(self._model, image_data, **(inference_kwargs or {}))
-        # with open('output_5142.txt', 'a') as f:
-        #     f.write(f"obs6 m: {(features.detach().mean().item())}\n")
-        #     f.write(f"obs6 s: {(features.detach().std().item())}\n")
-        # print("obs6 m:",(features.detach().mean().item()))
-        # print("obs6 s:",(features.detach().std().item()))
-        # move the features back to the image device
-        # features = features*1000
+        features = self._inference_fn(self._model, images, **(inference_kwargs or {}))
+
+        depth = env.scene.sensors[depth_cfg.name].data.output["distance_to_image_plane"]
+        depth_tensor = depth.squeeze(0).squeeze(-1)  # Keep on GPU, no .cpu().numpy()
+
+        self._frame_counter += 1
+
+        # Generate point clouds on GPU in one batch
+        batch_points_tensor = self.depth_to_pointcloud_batch_gpu(
+            depth_tensor, 
+            self.fx, 
+            self.fy, 
+            self.cx,
+            self.cy,
+            num_points=2048,
+            save_ply_debug=True,
+            env_id=0,
+            frame_counter=self._frame_counter,
+            save_dir="debug_pointclouds"
+        )
+
+        pts_input = batch_points_tensor.permute(0, 2, 1).contiguous()
+
+        with torch.no_grad():
+            depth_features_batch = self._point_encoder(pts_input)
+        
+        # import pdb
+        # pdb.set_trace()
+        
+        img_feat_norm = torch.nn.functional.normalize(features, p=2, dim=1)
+        
+        pc_feat_norm = torch.nn.functional.normalize(depth_features_batch, p=2, dim=1)
+        
+        features = torch.cat((img_feat_norm,pc_feat_norm),dim=-1)
+        
         return features.detach().to(image_device)
 
     """
@@ -589,7 +852,72 @@ class image_features(ManagerTermBase):
 
         # return the model, preprocess and inference functions
         return {"model": _load_model, "inference": _inference}
+    
+    def _prepare_pointnet_model(self) :
+        import torch.nn as nn
+        # experiment_dir = '/home/roborock/IsaacLab' 
+        # classifier = MODEL.get_model(13).cuda()
+        # checkpoint = torch.load(str(experiment_dir) + '/best_model.pth')
+        # classifier.load_state_dict(checkpoint['model_state_dict'])
+        # classifier = classifier.eval()
 
+        # self._point_encoder = classifier.feat
+        # self._point_encoder.eval()
+        # self._point_encoder.cuda()
+
+        experiment_dir = '/home/roborock/IsaacLab'
+        ckpt_path = f"{experiment_dir}/best_model.pth"
+
+        # ✅ 模型输入通道：原模型是 normal_channel=True（6 通道）
+        classifier = PointNet2ClsMsg(num_class=40, normal_channel=False).cuda()  
+
+        # ✅ 加载 checkpoint
+        checkpoint = torch.load(ckpt_path, map_location='cuda', weights_only=False)
+
+        # 拿出权重字典
+        state_dict = checkpoint['model_state_dict']
+
+        # # ✅ 动态修正输入通道权重 mismatch（从 6 -> 3）
+        # for key in list(state_dict.keys()):
+        #     if 'sa1' in key and 'weight' in key and state_dict[key].dim() == 4:
+        #         if state_dict[key].shape[1] == 6:
+        #             print(f"[INFO] Trimming {key} from 6→3 input channels.")
+        #             state_dict[key] = state_dict[key][:, :3, :, :]  # 截取前3个通道 (XYZ)
+
+        # # ✅ 忽略分类头不匹配部分
+        # ignore_keys = ['fc3.weight', 'fc3.bias']
+        # for k in ignore_keys:
+        #     if k in state_dict:
+        #         print(f"[INFO] Removing {k} from checkpoint.")
+        #         del state_dict[k]
+
+        # ✅ 加载修正后的权重
+        classifier.load_state_dict(state_dict, strict=False)
+        # print("[INFO] Missing keys:", missing)
+        # print("[INFO] Unexpected keys:", unexpected)
+
+        classifier.eval()
+
+        # ✅ 仅保留特征提取部分（encoder）
+        class PointNet2Encoder(nn.Module):
+            def __init__(self, base_model):
+                super().__init__()
+                self.normal_channel = True  # 我们只输入 XYZ
+                self.sa1 = base_model.sa1
+                self.sa2 = base_model.sa2
+                self.sa3 = base_model.sa3
+
+            def forward(self, xyz):
+                B, _, _ = xyz.shape
+                norm = None
+                l1_xyz, l1_points = self.sa1(xyz, norm)
+                l2_xyz, l2_points = self.sa2(l1_xyz, l1_points)
+                l3_xyz, l3_points = self.sa3(l2_xyz, l2_points)
+                features = l3_points.view(B, 1024)
+                return features
+
+        self._point_encoder = PointNet2Encoder(classifier).cuda().eval()
+        
 
 """
 Actions.

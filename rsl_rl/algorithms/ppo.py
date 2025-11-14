@@ -145,8 +145,6 @@ class PPO:
         # need to record obs and critic_obs before env.step()
         self.transition.observations = obs
         self.transition.privileged_observations = critic_obs
-        feature = self.policy.get_features(obs)
-        print(f"feature: {feature}")
         return self.transition.actions
 
     def process_env_step(self, rewards, dones, infos):

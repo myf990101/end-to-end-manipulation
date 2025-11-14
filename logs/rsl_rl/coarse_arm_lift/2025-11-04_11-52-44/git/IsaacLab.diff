@@ -1,0 +1,148 @@
+--- git status ---
+On branch pointcloud
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   output_formres1.txt
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/__pycache__/lift_env_cfg.cpython-310.pyc
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/__pycache__/joint_pos_env_cfg.cpython-310.pyc
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/joint_pos_env_cfg.py
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/lift_env_cfg.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	logs/rsl_rl/coarse_arm_lift/2025-11-04_11-52-44/
+	outputs/2025-11-04/
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/output_formres1.txt b/output_formres1.txt
+index 38eddb0..172764f 100644
+--- a/output_formres1.txt
++++ b/output_formres1.txt
+@@ -725,3 +725,27 @@ ee_w 0.1092727929353714 dis: 0.0061729042790830135,cube_pos_w: 0.103967018425464
+ ee_w 0.10969352722167969 dis: 0.10985948145389557,cube_pos_w: 0.009999388828873634
+ ee_w 0.06054198741912842 dis: 0.05082467570900917,cube_pos_w: 0.009999388828873634
+ ee_w 0.012748196721076965 dis: 0.00477221142500639,cube_pos_w: 0.010319052264094353
++ee_w 0.11512591689825058 dis: 0.1076628714799881,cube_pos_w: 0.009999388828873634
++ee_w 0.12370046228170395 dis: 0.11943451315164566,cube_pos_w: 0.009999388828873634
++ee_w 0.12379775941371918 dis: 0.1165682002902031,cube_pos_w: 0.009999388828873634
++ee_w 0.12090849876403809 dis: 0.11389735341072083,cube_pos_w: 0.009999388828873634
++ee_w 0.13896304368972778 dis: 0.13175617158412933,cube_pos_w: 0.009996148757636547
++ee_w 0.13999736309051514 dis: 0.13316220045089722,cube_pos_w: 0.00999851617962122
++ee_w 0.1199001595377922 dis: 0.11414892971515656,cube_pos_w: 0.009999388828873634
++ee_w 0.13486967980861664 dis: 0.1290862262248993,cube_pos_w: 0.009999388828873634
++ee_w 0.12697044014930725 dis: 0.1209808886051178,cube_pos_w: 0.00999938789755106
++ee_w 0.12152871489524841 dis: 0.11637213081121445,cube_pos_w: 0.009999388828873634
++ee_w 0.11342811584472656 dis: 0.11007252335548401,cube_pos_w: 0.009999388828873634
++ee_w 0.12624111771583557 dis: 0.12404236197471619,cube_pos_w: 0.009999388828873634
++ee_w 0.12401889264583588 dis: 0.11903507262468338,cube_pos_w: 0.009999388828873634
++ee_w 0.11956991255283356 dis: 0.11472868919372559,cube_pos_w: 0.009999388828873634
++ee_w 0.12478500604629517 dis: 0.11852651834487915,cube_pos_w: 0.00999938789755106
++ee_w 0.12124212831258774 dis: 0.11658316850662231,cube_pos_w: 0.009999388828873634
++ee_w 0.13034245371818542 dis: 0.12379322946071625,cube_pos_w: 0.009999388828873634
++ee_w 0.13253651559352875 dis: 0.12624692916870117,cube_pos_w: 0.009999388828873634
++ee_w 0.14008258283138275 dis: 0.13446298241615295,cube_pos_w: 0.009999388828873634
++ee_w 0.13568487763404846 dis: 0.13026916980743408,cube_pos_w: 0.009999388828873634
++ee_w 0.13033591210842133 dis: 0.12495346367359161,cube_pos_w: 0.009999388828873634
++ee_w 0.14418825507164001 dis: 0.13958501815795898,cube_pos_w: 0.009999388828873634
++ee_w 0.12663540244102478 dis: 0.12117209285497665,cube_pos_w: 0.009999388828873634
++ee_w 0.13583296537399292 dis: 0.12937426567077637,cube_pos_w: 0.009999388828873634
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/__pycache__/lift_env_cfg.cpython-310.pyc b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/__pycache__/lift_env_cfg.cpython-310.pyc
+index d3d22f6..aafb104 100644
+Binary files a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/__pycache__/lift_env_cfg.cpython-310.pyc and b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/__pycache__/lift_env_cfg.cpython-310.pyc differ
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/__pycache__/joint_pos_env_cfg.cpython-310.pyc b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/__pycache__/joint_pos_env_cfg.cpython-310.pyc
+index b8071b9..6ef9567 100644
+Binary files a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/__pycache__/joint_pos_env_cfg.cpython-310.pyc and b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/__pycache__/joint_pos_env_cfg.cpython-310.pyc differ
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/joint_pos_env_cfg.py b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/joint_pos_env_cfg.py
+index b5b6053..6bc5dd1 100644
+--- a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/joint_pos_env_cfg.py
++++ b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/joint_pos_env_cfg.py
+@@ -33,9 +33,9 @@ from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+ 
+ MY_ROBOT_CFG = ArticulationCfg(
+     spawn=sim_utils.UsdFileCfg(
+-        usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/R50/r50_v5/r50_v5.usd",
++        # usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/R50/r50_v5/r50_v5.usd",
+         # usd_path=f"/home/xuyang/xuyang_ws/DRL/isaac/IsaacLab-2.0.0/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/marm_backup/marm_backup.usd",
+-        # usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/r50_v6_rev/r50_v6_rev_cont.usd",
++        usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/r50_v6_rev/r50_v6_rev_cont.usd",
+         activate_contact_sensors=False,
+ 
+         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+@@ -52,7 +52,7 @@ MY_ROBOT_CFG = ArticulationCfg(
+     init_state=ArticulationCfg.InitialStateCfg(
+         pos=(0.0, 0.0, 0.005),
+         joint_pos={
+-            # "M0": 0,    # 锁死
++            "M0": 0,    # 锁死
+             # "M1": 1.57,  # 锁死
+             # "M2": 1.57,  # 锁死
+             "M3": 3.8,
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/lift_env_cfg.py b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/lift_env_cfg.py
+index d4fe8a8..514cd68 100644
+--- a/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/lift_env_cfg.py
++++ b/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/lift_env_cfg.py
+@@ -121,16 +121,41 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
+         height=600,
+     )
+ 
+-    # tiled_camera2: TiledCameraCfg = TiledCameraCfg(
+-    #     prim_path="{ENV_REGEX_NS}/Camera_2",
+-    #     offset=TiledCameraCfg.OffsetCfg(pos=(1.3, 0.0, 0.9), rot=((0.63281, 0.31551, 0.31551, 0.63281)), convention="opengl"),
+-    #     data_types=["rgb"],
+-    #     spawn=sim_utils.PinholeCameraCfg(
+-    #         focal_length=38.3, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
+-    #     ),
+-    #     width=1000,
+-    #     height=800,
+-    # )
++    depth_camera: TiledCameraCfg = TiledCameraCfg(
++        # prim_path="{ENV_REGEX_NS}/depth_camera",
++        prim_path="{ENV_REGEX_NS}/Robot/M0_chassis_link/tof_link/depth_camera",
++        # offset=TiledCameraCfg.OffsetCfg(pos=(0.162, -0.0293681, 0.075), rot=((0.4912, 0.50865, -0.50865, -0.4912)), convention="opengl"),
++        # offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=((1.0, 0.0, 0.0, 0.0)), convention="opengl"),
++        offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=((0.7071, 0.7071, 0.0, 0.0)), convention="opengl"),
++        data_types=["distance_to_image_plane"],  # Key change to depth
++        spawn=sim_utils.PinholeCameraCfg(
++            focal_length=10.6, focus_distance=400.0, horizontal_aperture=36, vertical_aperture=25.45,
++        ),
++        width=400,
++        height=300,
++        debug_vis=False,
++        # update_period=0.2,
++    )
++
++    gripper_camera: TiledCameraCfg = TiledCameraCfg(
++        prim_path="{ENV_REGEX_NS}/Robot/M5_wrist_link/gripper_camera",
++        offset=TiledCameraCfg.OffsetCfg(
++            pos=(0.06151, 0.00255, -0.0055),
++            rot=((0.8944, 0.0, -0.4472, 0.0)),
++            convention="opengl"
++        ),
++        data_types=["rgb"],
++        spawn=sim_utils.PinholeCameraCfg(
++            focal_length=8.0, 
++            focus_distance=200.0, 
++            horizontal_aperture=36, 
++            vertical_aperture=25.45,
++            
++        ),
++        width=400,
++        height=300,
++        debug_vis=False
++    )
+ 
+ 
+ 
+@@ -222,7 +247,7 @@ class RGBObservationsCfg:
+     class RGBCameraPolicyCfg(ObsGroup):
+         """Observations for policy group with RGB images."""
+ 
+-        image = ObsTerm(func=mdp.image, params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb"})
++        image = ObsTerm(func=mdp.image, params={"sensor_cfg": SceneEntityCfg("gripper_camera"), "data_type": "rgb"})
+ 
+         def __post_init__(self):
+             self.enable_corruption = False

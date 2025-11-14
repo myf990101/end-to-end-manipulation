@@ -33,9 +33,9 @@ from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
 MY_ROBOT_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/R50/r50_v5/r50_v5.usd",
+        # usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/R50/r50_v5/r50_v5.usd",
         # usd_path=f"/home/xuyang/xuyang_ws/DRL/isaac/IsaacLab-2.0.0/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/marm_backup/marm_backup.usd",
-        # usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/r50_v6_rev/r50_v6_rev_cont.usd",
+        usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/r50_v6_rev/r50_v6_rev_cont.usd",
         activate_contact_sensors=False,
 
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -52,7 +52,7 @@ MY_ROBOT_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.005),
         joint_pos={
-            # "M0": 0,    # 锁死
+            "M0": 0,    # 锁死
             # "M1": 1.57,  # 锁死
             # "M2": 1.57,  # 锁死
             "M3": 3.8,
@@ -105,7 +105,7 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
         # )
         self.actions.arm_action = mdp.JointPositionActionCfg(
             #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-            asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
+            asset_name = "robot", joint_names = ["M[034]"], use_default_offset =True
         )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
@@ -113,18 +113,10 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
             #open_command_expr={"panda_finger_.*": 0.04},
             #close_command_expr={"panda_finger_.*": 0.0},
             joint_names=["M6_.*"],
-            open_command_expr={"M6_.*": 0.04},
-            close_command_expr={"M6_.*": 0.0},
+            open_command_expr={"M6_1": 0.65, "M6_2": -0.65},  
+            close_command_expr={"M6_1": 0.07, "M6_2": -0.07},
         )
-        # self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
-        #     asset_name="robot",
-        #     #joint_names=["panda_finger.*"],
-        #     #open_command_expr={"panda_finger_.*": 0.04},
-        #     #close_command_expr={"panda_finger_.*": 0.0},
-        #     joint_names=["M6_.*"],
-        #     open_command_expr={"M6_1": 0.65, "M6_2": -0.65},  # Different directions
-        #     close_command_expr={"M6_1": 0.07, "M6_2": -0.07},
-        # )
+
 
         self.commands.object_pose.body_name = "M6_1_leftfinger_link"
         # self.commands.object_pose.body_name = "M6_1_rightfinger_link"

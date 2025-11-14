@@ -38,53 +38,64 @@ class ActorCritic(nn.Module):
         mlp_input_dim_a = num_actor_obs
         mlp_input_dim_c = num_critic_obs
         # Policy
-        # actor_layers = []
-        # actor_layers.append(nn.Linear(mlp_input_dim_a, actor_hidden_dims[0]))
-        # actor_layers.append(activation)
-        # for layer_index in range(len(actor_hidden_dims)):
-        #     if layer_index == len(actor_hidden_dims) - 1:
-        #         actor_layers.append(nn.Linear(actor_hidden_dims[layer_index], num_actions))
-        #     else:
-        #         actor_layers.append(nn.Linear(actor_hidden_dims[layer_index], actor_hidden_dims[layer_index + 1]))
-        #         actor_layers.append(activation)
-        # self.actor = nn.Sequential(*actor_layers)
+        actor_layers = []
+        actor_layers.append(nn.Linear(mlp_input_dim_a, actor_hidden_dims[0]))
+        actor_layers.append(activation)
+        for layer_index in range(len(actor_hidden_dims)):
+            if layer_index == len(actor_hidden_dims) - 1:
+                actor_layers.append(nn.Linear(actor_hidden_dims[layer_index], num_actions))
+            else:
+                actor_layers.append(nn.Linear(actor_hidden_dims[layer_index], actor_hidden_dims[layer_index + 1]))
+                actor_layers.append(activation)
+        self.actor = nn.Sequential(*actor_layers)
 
         # policy new
         print("num_actor_obs :",num_actor_obs)
         print("num_critic_obs :",num_critic_obs)
         channels, height, width = [3,128,128]  # CHW 格式
-        
-        ac_layers = []
-        conv_cfg = [
-            (32, 8, 4, 0),
-            (64, 4, 2, 0),
-            (64, 3, 1, 0)
-        ]
-        in_channels = channels
-        for out_channels, kernel_size, stride, padding in conv_cfg:
-            ac_layers.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
-            ac_layers.append(nn.ReLU())
-            in_channels = out_channels
-        ac_layers.append(nn.Flatten(start_dim=1))
-        #网络修改
-        # ac_layers.append(nn.Linear(9216, num_actions))
-        ac_layers.append(nn.Linear(20160, num_actions))
-        self.actor = nn.Sequential(*ac_layers)
-
+        #########################################################################卷积输入 actor
+        # ac_layers = []
+        # conv_cfg = [
+        #     (32, 8, 4, 0),
+        #     (64, 4, 2, 0),
+        #     (64, 3, 1, 0)
+        # ]
+        # in_channels = channels
+        # for out_channels, kernel_size, stride, padding in conv_cfg:
+        #     ac_layers.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
+        #     ac_layers.append(nn.ReLU())
+        #     in_channels = out_channels
+        # ac_layers.append(nn.Flatten(start_dim=1))
+        # #网络修改
+        # # ac_layers.append(nn.Linear(9216, num_actions))
+        # ac_layers.append(nn.Linear(20160, num_actions))
+        # self.actor = nn.Sequential(*ac_layers)
+        ########################################################################################
         # value new
-        va_layers = []
-        in_channels = channels
-        for out_channels, kernel_size, stride, padding in conv_cfg:
-            va_layers.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
-            va_layers.append(nn.ReLU())
-            in_channels = out_channels
-        va_layers.append(nn.Flatten(start_dim=1))
-        va_layers.append(nn.Linear(20160, 1))
-        self.critic = nn.Sequential(*va_layers)
-        # print("self.critic : ",self.critic)
+        # va_layers = []
+        # in_channels = channels
+        # for out_channels, kernel_size, stride, padding in conv_cfg:
+        #     va_layers.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
+        #     va_layers.append(nn.ReLU())
+        #     in_channels = out_channels
+        # va_layers.append(nn.Flatten(start_dim=1))
+        # va_layers.append(nn.Linear(20160, 1))
+        # self.critic = nn.Sequential(*va_layers)
+        # # print("self.critic : ",self.critic)
+        #######################################################################################
+        critic_layers = []
+        critic_layers.append(nn.Linear(mlp_input_dim_c, critic_hidden_dims[0]))
+        critic_layers.append(activation)
+        for layer_index in range(len(critic_hidden_dims)):
+            if layer_index == len(critic_hidden_dims) - 1:
+                critic_layers.append(nn.Linear(critic_hidden_dims[layer_index], 1))
+            else:
+                critic_layers.append(nn.Linear(critic_hidden_dims[layer_index], critic_hidden_dims[layer_index + 1]))
+                critic_layers.append(activation)
+        self.critic = nn.Sequential(*critic_layers)
 
 
-        print(f"Actor MLP: {self.actor}")
+        print(f"AAActor MLP: {self.actor}")
         print(f"Critic MLP: {self.critic}")
 
         # Action noise
@@ -158,9 +169,6 @@ class ActorCritic(nn.Module):
 
     def act_inference(self, observations):
         actions_mean = self.actor(observations)
-        features = self.actor[:-1](observations)  # 提取特征向量
-        print("特征向量 shape:", features.shape)
-        print("特征向量示例:", features[0]) 
         return actions_mean
 
     def evaluate(self, critic_observations, **kwargs):
@@ -184,10 +192,6 @@ class ActorCritic(nn.Module):
 
         super().load_state_dict(state_dict, strict=strict)
         return True
-    def get_features(self, observations):
-        
-        return self.actor[:-1](observations)
-
     
 import torch
 import torch.nn as nn
