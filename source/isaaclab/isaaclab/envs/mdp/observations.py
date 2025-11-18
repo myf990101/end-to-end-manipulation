@@ -718,6 +718,7 @@ class image_features(ManagerTermBase):
         images = sensor.data.output[data_type]
         # store the device of the image
         image_device = images.device
+       
         # forward the images through the model
         features = self._inference_fn(self._model, images, **(inference_kwargs or {}))
 
@@ -733,20 +734,33 @@ class image_features(ManagerTermBase):
             self.fy, 
             self.cx,
             self.cy,
-            num_points=2048,
+            num_points=1024,
             save_ply_debug=True,
             env_id=0,
             frame_counter=self._frame_counter,
             save_dir="debug_pointclouds"
         )
+        # pcd= o3d.io.read_point_cloud("/home/roborock/IsaacLab/debug_pointclouds/env_0/frame_000001_3_downsampled.ply")
+        # points = np.asarray(pcd.points).astype(np.float32)  
+        pcd = o3d.io.read_point_cloud("/home/roborock/IsaacLab/batch0.pcd")
 
-        pts_input = batch_points_tensor.permute(0, 2, 1).contiguous()
+        points = np.asarray(pcd.points)  # shape: [N, 3]
 
+        # 转成 tensor
+        points_tensor = torch.from_numpy(points).float().cuda()  # [N, 3]
+
+        # 扩展 batch 维度
+        points_tensor = points_tensor.unsqueeze(0)  # [1, N, 3]
+
+        # 如果模型要求 [B, 3, N] 形状
+        points_tensor = points_tensor.permute(0, 2, 1)
+        # pts_input = batch_points_tensor.permute(0, 2, 1).contiguous()
+        import pdb
+        pdb.set_trace()
         with torch.no_grad():
-            depth_features_batch = self._point_encoder(pts_input)
+            depth_features_batch = self._point_encoder(points_tensor)
         
-        # import pdb
-        # pdb.set_trace()
+        
         
         img_feat_norm = torch.nn.functional.normalize(features, p=2, dim=1)
         
@@ -827,6 +841,7 @@ class image_features(ManagerTermBase):
 
             # load the model
             model = getattr(models, model_name)(weights=resnet_weights[model_name]).eval()
+            model = torch.nn.Sequential(*list(model.children())[:-1])
             return model.to(model_device)
 
         def _inference(model, images: torch.Tensor) -> torch.Tensor:
@@ -839,16 +854,41 @@ class image_features(ManagerTermBase):
             Returns:
                 The extracted features tensor. Shape is (num_envs, feature_dim).
             """
+            def load_image(img_path, input_size=(224, 224)):
+    # 读取图片
+                img = cv2.imread(img_path)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+                # resize 到模型的输入尺寸
+                img = cv2.resize(img, input_size)
+
+                # HWC -> CHW
+                img = img.transpose(2, 0, 1).astype(np.float32) / 255.0  # 归一化到 [0,1]
+
+                # ResNet ImageNet 预处理
+                mean = np.array([0.485, 0.456, 0.406]).reshape(3,1,1)
+                std  = np.array([0.229, 0.224, 0.225]).reshape(3,1,1)
+                img = (img - mean) / std
+
+                # 增加 batch 维度 (1,3,H,W)
+                img = np.expand_dims(img, axis=0).astype(np.float32)
+
+                return img
+            img = load_image("/home/roborock/docker_images_v1.8.x/docker_bushu/1.png", input_size=(224, 224))
+            images = torch.from_numpy(img)
             # move the image to the model device
             image_proc = images.to(model_device)
             # permute the image to (num_envs, channel, height, width)
-            image_proc = image_proc.permute(0, 3, 1, 2).float() / 255.0
-            # normalize the image
-            mean = torch.tensor([0.485, 0.456, 0.406], device=model_device).view(1, 3, 1, 1)
-            std = torch.tensor([0.229, 0.224, 0.225], device=model_device).view(1, 3, 1, 1)
-            image_proc = (image_proc - mean) / std
+            # image_proc = image_proc.permute(0, 3, 1, 2).float() / 255.0
+            # # normalize the image
+            # mean = torch.tensor([0.485, 0.456, 0.406], device=model_device).view(1, 3, 1, 1)
+            # std = torch.tensor([0.229, 0.224, 0.225], device=model_device).view(1, 3, 1, 1)
+            # image_proc = (image_proc - mean) / std
             # forward the image through the model
-            return model(image_proc)
+            with torch.no_grad():
+                feats = model(image_proc)          # [N, 512, 1, 1]
+                feats = feats.view(feats.size(0), -1)  # [N, 512]
+            return feats
 
         # return the model, preprocess and inference functions
         return {"model": _load_model, "inference": _inference}
