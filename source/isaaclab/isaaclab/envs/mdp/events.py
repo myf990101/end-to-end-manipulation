@@ -1611,3 +1611,123 @@ def _randomize_prop_by_op(
             f"Unknown operation: '{operation}' for property randomization. Please use 'add', 'scale', or 'abs'."
         )
     return data
+
+
+def randomize_object_pool_selection(
+    env: ManagerBasedRLEnv,
+    env_ids: torch.Tensor | None,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("object_pool"),
+):
+    """Randomize which object from pool is active per environment."""
+    # Handle None env_ids (startup mode - apply to all environments)
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=env.device)
+
+    object_collection = env.scene[asset_cfg.name]
+    num_objects = len(object_collection.object_names)
+
+    # Create buffer to store active object indices if not exists
+    if not hasattr(env, 'active_object_indices'):
+        env.active_object_indices = torch.zeros(env.num_envs, dtype=torch.long, device=env.device)
+
+    for env_idx in env_ids:
+        active_idx = torch.randint(0, num_objects, (1,), device=env.device).item()
+        env.active_object_indices[env_idx] = active_idx
+
+        for obj_idx in range(num_objects):
+            pos = torch.tensor([0.3254, 0.0, 0.0] if obj_idx == active_idx else [100.0, 100.0, -10.0], device=env.device)
+
+            root_state = object_collection.data.default_object_state[env_idx, obj_idx].clone()
+            root_state[:3] = pos + env.scene.env_origins[env_idx]
+            root_state[3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=env.device)
+            root_state[7:] = 0.0
+
+            object_collection.write_object_state_to_sim(
+                root_state.unsqueeze(0),
+                env_ids=torch.tensor([env_idx], device=env.device),
+                object_ids=torch.tensor([obj_idx], device=env.device)
+            )
+
+
+def randomize_object_and_position(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    pose_range: dict[str, tuple[float, float]],
+    rigid_asset_cfg: SceneEntityCfg = SceneEntityCfg("object_pool"),
+):
+    """
+    自动处理 object_pool 只有 1 个 or 多个物体的情况。
+    单物体：直接随机位置，不选择 active index
+    多物体：保留你原来的逻辑（随机选择 + 其它物体丢到 10000m）
+    """
+    device = env.device
+    if not hasattr(env, "active_object_indices"):
+        env.active_object_indices = torch.zeros(env.scene.num_envs, dtype=torch.long, device=env.device)
+    if env_ids is None:
+        env_ids = torch.arange(env.scene.num_envs, device=device)
+    try:
+        obj_col = env.scene[rigid_asset_cfg.name]
+    except Exception:
+        return
+    num_envs = len(env_ids)
+    env_origins = env.scene.env_origins[env_ids]
+    # [N, num_objs, 13]
+    default_states = obj_col.data.default_object_state[env_ids].clone()
+    state_w = obj_col.data.object_state_w[env_ids].clone()
+    num_objs = len(obj_col.cfg.rigid_objects)
+    env_idx = torch.arange(num_envs, device=device)
+    # =============================================================================
+    # Case 1: 单物体 → 不需要随机选物体，不需要 active_object_indices
+    # =============================================================================
+    if num_objs == 1:
+        base_pos = default_states[:, 0, 0:3]
+        base_quat = default_states[:, 0, 3:7]
+        # pose range
+        range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x","y","z","roll","pitch","yaw"]]
+        ranges = torch.tensor(range_list, device=device)
+        rand_pose = torch.empty((num_envs, 6), device=device)
+        for k in range(6):
+            rand_pose[:, k] = torch.empty(num_envs, device=device).uniform_(ranges[k, 0], ranges[k, 1])
+        delta_pos = rand_pose[:, 0:3]
+        world_pos = env_origins + base_pos + delta_pos
+        # random rotation
+        delta_quat = math_utils.quat_from_euler_xyz(rand_pose[:, 3], rand_pose[:, 4], rand_pose[:, 5])
+        world_quat = math_utils.quat_mul(base_quat, delta_quat)
+        state_w[:, 0, 0:3] = world_pos
+        state_w[:, 0, 3:7] = world_quat
+        state_w[:, 0, 7:13] = 0.0  # clear velocities
+        obj_col.write_object_link_pose_to_sim(state_w[..., :7], env_ids=env_ids)
+        obj_col.write_object_com_velocity_to_sim(state_w[..., 7:], env_ids=env_ids)
+        return  # 单物体逻辑结束
+    # =============================================================================
+    # Case 2: 多物体 → 保留原本逻辑
+    # =============================================================================
+    # 随机选择 active object
+    active_obj_ids = torch.randint(0, num_objs, (num_envs,), device=device)
+    env.active_object_indices = active_obj_ids.clone()
+    # hide 未选中的物体
+    dummy_z = 10000.0
+    for i in range(num_envs):
+        for j in range(num_objs):
+            if j != int(active_obj_ids[i]):
+                state_w[i, j, 0:3] = torch.tensor([0.0, 0.0, dummy_z], device=device)
+                state_w[i, j, 7:13] = 0.0
+    # pose range
+    range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x","y","z","roll","pitch","yaw"]]
+    ranges = torch.tensor(range_list, device=device)
+    rand_pose = torch.empty((num_envs, 6), device=device)
+    for k in range(6):
+        rand_pose[:, k] = torch.empty(num_envs, device=device).uniform_(ranges[k, 0], ranges[k, 1])
+    # 对每个 env 的 active object 单独设置随机 pose
+    base_pos = default_states[env_idx, active_obj_ids, 0:3]
+    base_quat = default_states[env_idx, active_obj_ids, 3:7]
+    delta_pos = rand_pose[:, 0:3]
+    world_pos = env_origins + base_pos + delta_pos
+    delta_quat = math_utils.quat_from_euler_xyz(rand_pose[:, 3], rand_pose[:, 4], rand_pose[:, 5])
+    world_quat = math_utils.quat_mul(base_quat, delta_quat)
+    # 写回 active object
+    state_w[env_idx, active_obj_ids, 0:3] = world_pos
+    state_w[env_idx, active_obj_ids, 3:7] = world_quat
+    state_w[env_idx, active_obj_ids, 7:13] = 0.0
+    obj_col.write_object_link_pose_to_sim(state_w[..., :7], env_ids=env_ids)
+    obj_col.write_object_com_velocity_to_sim(state_w[..., 7:], env_ids=env_ids)

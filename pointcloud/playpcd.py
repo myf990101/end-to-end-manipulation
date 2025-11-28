@@ -1,8 +1,8 @@
-import open3d as o3d
-import time
-from pathlib import Path
+# import open3d as o3d
+# import time
+# from pathlib import Path
 
-# 设置点云文件夹路径
+# # 设置点云文件夹路径
 # pcd_folder = Path("/home/roborock/IsaacLab/pointcloud/NAV_binId10_pcd")
 
 # # 获取所有 PCD 文件并按名字排序
@@ -16,7 +16,7 @@ from pathlib import Path
 
 # added = False
 # frame = 0
-# for frame, file in enumerate(pcd_files[100:1500], 1):
+# for frame, file in enumerate(pcd_files, 1):
 #     print(f"Frame {frame}")
 #     cloud = o3d.io.read_point_cloud(str(file))
 #     if len(cloud.points) == 0:
@@ -46,15 +46,31 @@ from pathlib import Path
 # param = vis.get_view_control().convert_to_pinhole_camera_parameters()
 # o3d.io.write_pinhole_camera_parameters("viewpoint.json", param)
 # vis.destroy_window()
-# import open3d as o3d
-# import numpy as np
+import open3d as o3d
+import numpy as np
 
-# # 读取 TXT 文件
-# points = np.loadtxt("/home/roborock/下载/frame(3).txt")  # shape: (N,3)
 
-# # 创建 Open3D 点云对象
-# pcd = o3d.geometry.PointCloud()
-# pcd.points = o3d.utility.Vector3dVector(points)
 
-# # 可视化
-# o3d.visualization.draw_geometries([pcd])
+# 读取 txt 点云
+import numpy as np
+from plyfile import PlyData, PlyElement
+
+# 读取点云，每行 x y z intensity
+points = np.loadtxt("/home/roborock/Downloads/frame(39).txt")
+xyz = points[:, :3]
+intensity = points[:, 3]
+
+# 构建 structured array，PLY 要求每列定义类型
+vertex = np.array(
+    [tuple(row) for row in np.column_stack([xyz, intensity])],
+    dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('intensity', 'f4')]
+)
+
+# 创建 PLY 元素
+ply_el = PlyElement.describe(vertex, 'vertex')
+
+# 保存 PLY 文件（ASCII 格式，可改为 binary=True）
+PlyData([ply_el], text=True).write('frame_rot3.ply')
+
+print("保存成功：farcube_with_intensity.ply")
+

@@ -6,10 +6,8 @@
 """Script to play a checkpoint if an RL agent from RSL-RL."""
 
 """Launch Isaac Sim Simulator first."""
-
-import argparse
-
 from isaaclab.app import AppLauncher
+import argparse
 
 # local imports
 import cli_args  # isort: skip
@@ -46,6 +44,7 @@ simulation_app = app_launcher.app
 
 import gymnasium as gym
 import os
+
 import time
 import torch
 import cv2
@@ -157,10 +156,10 @@ def main():
             # agent stepping
             
             
-            obs = obs.permute(0, 3, 1, 2)
+            # obs = obs.permute(0, 3, 1, 2)
             actions = policy(obs)
 
-            # actions = torch.zeros(1, 3)
+            # actions = torch.zeros(1, 4)
             # actions = actions.to(device)  # 明确发送到 GPU 上
 
             # print(obs) #输入是RRRRGGGGGBBBBB

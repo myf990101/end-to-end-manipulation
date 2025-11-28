@@ -35,8 +35,9 @@ MY_ROBOT_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         # usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/R50/r50_v5/r50_v5.usd",
         # usd_path=f"/home/xuyang/xuyang_ws/DRL/isaac/IsaacLab-2.0.0/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/marm_backup/marm_backup.usd",
-        usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/r50_v6_rev/r50_v6_rev_cont.usd",
-        activate_contact_sensors=False,
+        # usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/r50_v6_rev/r50_v6_rev_cont.usd",
+        usd_path=f"/home/roborock/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/robot_model/arm_description/urdf/R50_1/r50_v6_rev/r50_v6_rev.usd",
+        activate_contact_sensors=True,
 
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -50,9 +51,9 @@ MY_ROBOT_CFG = ArticulationCfg(
         # collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.005, rest_offset=0.0),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.005),
+        # pos=(0.0, 0.0, 0.005),
         joint_pos={
-            "M0": 0,    # 锁死
+            # "M0": 0,    # 锁死
             # "M1": 1.57,  # 锁死
             # "M2": 1.57,  # 锁死
             "M3": 3.8,
@@ -105,7 +106,7 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
         # )
         self.actions.arm_action = mdp.JointPositionActionCfg(
             #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-            asset_name = "robot", joint_names = ["M[034]"], use_default_offset =True
+            asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
         )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
@@ -135,95 +136,83 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
         
         # print(f'cube size {cube_size}')
         # Set Cube as object
-        self.scene.object= RigidObjectCfg(
-        prim_path="/World/envs/env_.*/Object",
-        spawn=sim_utils.MultiAssetSpawnerCfg(
-            assets_cfg=[
-                sim_utils.CuboidCfg(
-                    size=(cube_size, cube_size, cube_size),
-                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.0, 0.0), metallic=0.2),
+        # self.scene.object= RigidObjectCfg(
+        # prim_path="/World/envs/env_.*/Object",
+        # spawn=sim_utils.MultiAssetSpawnerCfg(
+        #     assets_cfg=[
+        #         sim_utils.CuboidCfg(
+        #             size=(cube_size, cube_size, cube_size),
+        #             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.0, 0.0), metallic=0.2),
+        #         ),
+        #         # sim_utils.CuboidCfg(
+        #         #     size=(cube_size, cube_size, cube_size),
+        #         #     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.5, 0.0), metallic=0.2),
+        #         # )
+        #     ],
+        #     random_choice=True,
+        #     rigid_props=sim_utils.RigidBodyPropertiesCfg(
+        #         solver_position_iteration_count=4, solver_velocity_iteration_count=0
+        #     ),
+        #     mass_props=sim_utils.MassPropertiesCfg(mass=0.01),
+        #     collision_props=sim_utils.CollisionPropertiesCfg(),
+        # ),
+        # init_state=RigidObjectCfg.InitialStateCfg(pos=[0.3654, 0.00, 0], rot=[1, 0, 0, 0]),
+    # )  
+        self.scene.object = RigidObjectCfg(
+            prim_path="/World/envs/env_.*/Object_Dummy",
+            spawn=sim_utils.CuboidCfg(
+                size=(0.001, 0.001, 0.001),
+                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0)),
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
+                mass_props=sim_utils.MassPropertiesCfg(mass=0.001),
+            ),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[200.0, 200.0, -100.0]),
+        )
+        from isaaclab.assets import RigidObjectCollectionCfg
+
+        self.scene.object_pool = RigidObjectCollectionCfg(
+            rigid_objects={
+                "eye_drops": RigidObjectCfg(
+                    prim_path="/World/envs/env_.*/eye_drops",
+                    spawn=sim_utils.UsdFileCfg(
+                        usd_path="/home/roborock/Downloads/eyedrops/2.usdc",
+                        scale=(0.0002, 0.0002, 0.0002),
+                        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                            solver_position_iteration_count=128,
+                            solver_velocity_iteration_count=64,
+                            disable_gravity=False,
+                        ),
+                        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                            articulation_enabled=False,  # CRITICAL: Disable articulation
+                        ),
+                    ),
+                    init_state=RigidObjectCfg.InitialStateCfg(pos=(0.30, 0.005, 0.00)),
                 ),
-                # sim_utils.CuboidCfg(
-                #     size=(cube_size, cube_size, cube_size),
-                #     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.5, 0.0), metallic=0.2),
+                
+                # "object_2": RigidObjectCfg(
+                #     prim_path="/World/envs/env_.*/Object",
+                #     spawn=sim_utils.MultiAssetSpawnerCfg(
+                #         assets_cfg=[
+                #             sim_utils.CuboidCfg(
+                #                 size=(cube_size, cube_size, cube_size),
+                #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.0, 0.0), metallic=0.2),
+                #             ),
+                #             # sim_utils.CuboidCfg(
+                #             #     size=(cube_size, cube_size, cube_size),
+                #             #     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.5, 0.0), metallic=0.2),
+                #             # )
+                #         ],
+                #         random_choice=True,
+                #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                #             solver_position_iteration_count=4, solver_velocity_iteration_count=0
+                #         ),
+                #         mass_props=sim_utils.MassPropertiesCfg(mass=1),
+                #         collision_props=sim_utils.CollisionPropertiesCfg(),
+                #     ),
+                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.31, 0.00, 0], rot=[1, 0, 0, 0]),
                 # )
-            ],
-            random_choice=True,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                solver_position_iteration_count=4, solver_velocity_iteration_count=0
-            ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=0.01),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-        ),
-        init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0.00, 0], rot=[1, 0, 0, 0]),
-    )
-        # self.scene.object1 = RigidObjectCfg(
-        #     prim_path="{ENV_REGEX_NS}/Object1",
-        #     #init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
-        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0.0, 0], rot=[1, 0, 0, 0]),
-        #     spawn=UsdFileCfg(
-        #         # usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-        #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/red_block.usd",
-        #         scale=(0.14, 0.14, 0.14),
-
-        #         rigid_props=RigidBodyPropertiesCfg(
-        #             solver_position_iteration_count=16,
-        #             solver_velocity_iteration_count=16,
-        #             max_angular_velocity=1000.0,
-        #             max_linear_velocity=1000.0,
-        #             max_depenetration_velocity=5.0,
-        #             disable_gravity=False,
-        #         ),
-        #     ),debug_vis=False
-        # )
-
-        # self.scene.object2 = RigidObjectCfg(
-        #     prim_path="{ENV_REGEX_NS}/Object2",
-        #     #init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
-        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, -0.1, 0], rot=[1, 0, 0, 0]),
-        #     spawn=UsdFileCfg(
-        #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-        #         # usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/red_block.usd",
-        #         scale=(0.1, 0.1, 0.1),
-
-        #         rigid_props=RigidBodyPropertiesCfg(
-        #             solver_position_iteration_count=16,
-        #             solver_velocity_iteration_count=16,
-        #             max_angular_velocity=1000.0,
-        #             max_linear_velocity=1000.0,
-        #             max_depenetration_velocity=5.0,
-        #             disable_gravity=False,
-        #         ),
-        #     ),debug_vis=False
-        # )
-
-        '''
-        self.scene.table_cam = CameraCfg(
-            prim_path="{ENV_REGEX_NS}/table_cam",
-            update_period=0.1,
-            height=100,
-            width=100,
-            data_types=["rgb", "distance_to_image_plane"],
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-            ),
-            offset=CameraCfg.OffsetCfg(pos=(0.5, 0.0, 0.5), rot=(-0.5, 0.5, 0.5, -0.5), convention="ros"),
+            }
         )
-        '''
-
-        '''
-        self.scene.table_cam = TiledCameraCfg(
-            prim_path="{ENV_REGEX_NS}/table_cam",
-            offset=TiledCameraCfg.OffsetCfg(pos=(0.5, 0.0, 1.5), rot=(0, -0.5, -0.5, 0), convention="ros"),
-            data_types=["rgb"],
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-            ),
-            width=100,
-            height=100,
-        )
-        '''
-
         # Listens to the required transforms
         marker_cfg = FRAME_MARKER_CFG.copy()
         # marker_cfg.markers["frame"].scale = (0.03, 0.03, 0.03)

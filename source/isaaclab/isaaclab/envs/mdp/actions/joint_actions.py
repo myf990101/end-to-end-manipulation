@@ -137,7 +137,8 @@ class JointAction(ActionTerm):
         # print (f'scale:{self._scale}')
         # apply the affine transformations
         self._processed_actions = self._raw_actions * self._scale + self._offset   #初始代码
-        # print(self._processed_actions)
+        # self._processed_actions = self._offset 
+        # print(self._processed_actions[0])
         # clip actions
         if self.cfg.clip is not None:
             self._processed_actions = torch.clamp(

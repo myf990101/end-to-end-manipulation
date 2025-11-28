@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from log.classification.pointnet2_ssg_wo_normals.pointnet2_utils import PointNetSetAbstraction 
+from isaaclab.pointnet.log.classification.pointnet2_ssg_wo_normals.pointnet2_utils import PointNetSetAbstraction 
 
 
 class get_model(nn.Module):

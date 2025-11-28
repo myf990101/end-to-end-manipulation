@@ -20,11 +20,18 @@ from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransf
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
-from isaaclab.sensors import TiledCameraCfg,CameraCfg
+from isaaclab.sensors import TiledCameraCfg,CameraCfg, ContactSensorCfg
 
-from . import mdp
+from isaaclab.sensors.ray_caster import RayCasterCfg, patterns
+
+from isaaclab.sensors.camera.utils import create_pointcloud_from_depth
+# from isaaclab.sensors.ray_caster.patterns.patterns_cfg import LidarPatternCfg
+
 import torch
 import torch.nn as nn
+# from .custom_ray_caster import FixedRayCaster
+
+from . import mdp
 ##
 # Scene definition
 ##
@@ -106,58 +113,72 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
             color_temperature=5000.0
         )
     )
-    tiled_camera: TiledCameraCfg = TiledCameraCfg(
-        prim_path="{ENV_REGEX_NS}/Camera_1",
-        # offset=TiledCameraCfg.OffsetCfg(pos=(0.16729, -0.02805, 0.055), rot=(( 0.49102 ,0.49805, -0.50194,   -0.50194)), convention="opengl"),
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.162, -0.02805, 0.0575158), rot=(( -0.48897357,-0.51078846,0.51078846,0.48897357)), convention="opengl"),
+    # tiled_camera: TiledCameraCfg = TiledCameraCfg(
+    #     prim_path="{ENV_REGEX_NS}/Camera_1",
+    #     # offset=TiledCameraCfg.OffsetCfg(pos=(0.16729, -0.02805, 0.055), rot=(( 0.49102 ,0.49805, -0.50194,   -0.50194)), convention="opengl"),
+    #     offset=TiledCameraCfg.OffsetCfg(pos=(0.162, -0.02805, 0.0575158), rot=(( -0.48897357,-0.51078846,0.51078846,0.48897357)), convention="opengl"),
 
-        data_types=["rgb"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=17.5, focus_distance=400.0, horizontal_aperture=36,vertical_aperture=25.45
-        ),
-        # spawn=sim_utils.PinholeCameraCfg(
-        #     focal_length=1.8, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
-        # ),
-        width=800,
-        height=600,
-    )
+    #     data_types=["rgb"],
+    #     spawn=sim_utils.PinholeCameraCfg(
+    #         focal_length=17.5, focus_distance=400.0, horizontal_aperture=36,vertical_aperture=25.45
+    #     ),
+    #     # spawn=sim_utils.PinholeCameraCfg(
+    #     #     focal_length=1.8, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
+    #     # ),
+    #     width=800,
+    #     height=600,
+    # )
 
     depth_camera: TiledCameraCfg = TiledCameraCfg(
         # prim_path="{ENV_REGEX_NS}/depth_camera",
-        prim_path="{ENV_REGEX_NS}/Robot/depth_camera",
+        prim_path="{ENV_REGEX_NS}/Robot/M0_chassis_link/tof_link/depth_camera",
         # offset=TiledCameraCfg.OffsetCfg(pos=(0.162, -0.0293681, 0.075), rot=((0.4912, 0.50865, -0.50865, -0.4912)), convention="opengl"),
         # offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=((1.0, 0.0, 0.0, 0.0)), convention="opengl"),
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.16545, 0.0, 0.0578), rot=((0.7071, 0.7071, 0.0, 0.0)), convention="opengl"),
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=((0.0, -1.0, 0.0, 0.0)), convention="opengl"),
         data_types=["distance_to_image_plane"],  # Key change to depth
         spawn=sim_utils.PinholeCameraCfg(
-            focal_length=16.7, focus_distance=400.0, horizontal_aperture=36, vertical_aperture=25.45,
+            focal_length=26.29, focus_distance=400.0, horizontal_aperture=36, vertical_aperture=25.45,
         ),
-        width=400,
-        height=300,
+        width=200,
+        height=150,
         debug_vis=False,
         # update_period=0.2,
     )
 
     gripper_camera: TiledCameraCfg = TiledCameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/M5_wrist_link/gripper_camera",
+        prim_path="{ENV_REGEX_NS}/Robot/M5_wrist_link/camera_Link/gripper_camera",
         offset=TiledCameraCfg.OffsetCfg(
-            pos=(0.06151, 0.00255, -0.0055),
-            rot=((0.8944, 0.0, -0.4472, 0.0)),
+            pos=(0.0, -0.00009, -0.00402),
+            rot=((0.04717, -0.99889, 0.0, 0.0)),
             convention="opengl"
         ),
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
-            focal_length=8.0, 
-            focus_distance=200.0, 
-            horizontal_aperture=36, 
-            vertical_aperture=25.45,
-            
+            focal_length=15.6,
+            focus_distance=400.0,
+            horizontal_aperture=20.955,
+            vertical_aperture=15.2908,    
         ),
-        width=400,
-        height=300,
-        debug_vis=False
+        width=640,
+        height=480,
+        debug_vis=False,
+        update_period=0.15,
+    )
+    contact_forces_left = ContactSensorCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/M6_1_leftfinger_link",  # Left gripper finger link
+        update_period=0.0,  # Update every step
+        history_length=5,
+        track_air_time=False,
+        debug_vis=False,
     )
 
+    contact_forces_right = ContactSensorCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/M6_2_rightfinger_link",  # Right gripper finger link
+        update_period=0.0,
+        history_length=5,
+        track_air_time=False,
+        debug_vis=False,
+    )
 
 
 ##
@@ -302,132 +323,135 @@ class EventCfg:
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
-    reset_object_position = EventTerm(
-        func=mdp.reset_root_state_uniform,
-        mode="reset",
-        params={
-            # "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
-            # "pose_range": {"x": (-0.05, 0.05), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
+    # reset_object_position = EventTerm(
+    #     func=mdp.reset_root_state_uniform,
+    #     mode="reset",
+    #     params={
+    #         # "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
+    #         # "pose_range": {"x": (-0.05, 0.05), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
 
-            "pose_range": {
-                "x": (0.00, 0.07),
-                "y": (0.00, 0.01),
-                "z": (0.0, 0.0),
-                # "yaw": (-0.5, 0.5),
-            },
+    #         "pose_range": {
+    #             "x": (-0.02, 0.02),
+    #             "y": (0.00, 0.00),
+    #             "z": (0.0, 0.0),
+    #             # "yaw": (-0.5, 0.5),
+    #         },
 
             
-            "velocity_range": {},
+    #         "velocity_range": {},
+    #     },
+    # )
+    # object_pool_spawn = EventTerm(
+    #     func=mdp.randomize_object_pool_selection,
+    #     mode="startup",
+    #     params={"asset_cfg": SceneEntityCfg("object_pool")},
+    # )
+    reset_object_or_paper_and_position = EventTerm(
+        func=mdp.randomize_object_and_position,
+        mode="reset",
+        params={
+            "pose_range": {
+                "x": (-0.03, 0.03),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
+            },
+            "rigid_asset_cfg": SceneEntityCfg("object_pool"),
         },
     )
-    randomize_lighting_reset = EventTerm(
-        func=mdp.randomize_multiple_sphere_lights,
-        mode="reset",
-        params={"num_lights": 2},
-    )
+    # randomize_lighting_reset = EventTerm(
+    #     func=mdp.randomize_multiple_sphere_lights,
+    #     mode="reset",
+    #     params={"num_lights": 2},
+    # )
     
-    randomize_floor = EventTerm(
-        func=mdp.randomize_floor_texture,
-        mode="reset",
-        params={
-            "texture_txt_path" :"/home/roborock/桌面/floor.txt"
-        },
-    )
-    randomize_wall = EventTerm(
-        func=mdp.randomize_wall_texture,
-        mode="reset",
-        params={
-            "texture_txt_path" :"/home/roborock/桌面/floor.txt"
-        },
-    )
+    # randomize_floor = EventTerm(
+    #     func=mdp.randomize_floor_texture,
+    #     mode="reset",
+    #     params={
+    #         "texture_txt_path" :"/home/roborock/桌面/floor.txt"
+    #     },
+    # )
+    # randomize_wall = EventTerm(
+    #     func=mdp.randomize_wall_texture,
+    #     mode="reset",
+    #     params={
+    #         "texture_txt_path" :"/home/roborock/桌面/floor.txt"
+    #     },
+    # )
+
+
 @configclass
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    # reaching_object = RewTerm(func=mdp.object_ee_distance, params={"std": 0.1}, weight=1.0)
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-500.0)
+
     reaching_object = RewTerm(
         func=mdp.object_ee_distance,
         params={"std": 0.1},
-        weight=40,  # 2.0
-        # weight=20.0,
+        weight=10,
     )
+
     lifting_object_linear = RewTerm(
         func=mdp.object_is_lifted_linear,
-        params={"minimal_height": 0.025, "max_height": 0.045},
-        weight=1000.0,   # 1500  150
-    )
-    # termination_penalty = RewTerm(func=mdp.is_terminated, weight=-100.0)
-    # lifting_object = RewTerm(
-    #     func=mdp.object_is_lifted,
-    #     params={"minimal_height": 0.02},
-    #     weight=50.0,   # 1500  150
-    # )
-
-    # lifting_object1 = RewTerm(
-    #     func=mdp.object_is_lifted,
-    #     params={"minimal_height": 0.03},
-    #     weight=100.0,   # 1500  150
-    # )
-
-    # lifting_object2 = RewTerm(
-    #     func=mdp.object_is_lifted,
-    #     params={"minimal_height": 0.04},
-    #     weight=200.0,   # 1500  150
-    # )
-
-    # lifting_object3 = RewTerm(
-    #     func=mdp.object_is_lifted,
-    #     params={"minimal_height": 0.05},
-    #     weight=500.0,   # 1500  150
-    # )
-
-
-    object_goal_tracking = RewTerm(
-        func=mdp.object_goal_distance,
-        params={"std": 0.3, "minimal_height": 0.028, "command_name": "object_pose"},
-        weight=1000, # 16.0
+        params={"minimal_height": 0.01, "max_height": 0.06},
+        weight=100.0,   # 1500  150
     )
 
-    object_goal_tracking_fine_grained = RewTerm(
-        func=mdp.object_goal_distance,
-        #params={"std": 0.05, "minimal_height": 0.04, "command_name": "object_pose"},
-        params={"std": 0.05, "minimal_height": 0.028, "command_name": "object_pose"},
-        weight=0.5,  # 5.0
+    lifting_object_linear_contact = RewTerm(
+        func=mdp.object_is_lifted_with_contact,
+        params={
+            "minimal_height": 0.01,
+            "max_height": 0.1,
+            "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
+            "require_both_contacts": True,  # Both fingers must contact
+        },
+        weight=500.0,
+    )
+
+    # NEW: Point cloud density reward
+    contain_object = RewTerm(
+        func=mdp.pcd_contain_object,
+        params={
+            "density_scale": 1.0,
+            "use_tanh": True,  # Set True for smoother gradients
+            "min_ee_robot_distance": 0.26,
+        },
+        weight=30.0,  # Tune this: 5.0-20.0 depending on importance
+    )
+    # # contain_object = RewTerm(
+    # #     func=mdp.pcd_contain_object1,
+    # #     params={
+    # #         "density_scale": 1.0,
+    # #         "use_tanh": True,  # Set True for smoother gradients
+    # #         "min_ee_robot_distance": 0.26,
+    # #         "valid_object_name": "eye_drops",
+    # #         "excluded_object_names": ["m6_1_leftfinger_link", "m6_2_rightfinger_link", "m5_wrist_link"],
+    # #     },
+    # #     weight=30.0,  # Tune this: 5.0-20.0 depending on importance
+    # # )
+
+    clamp_object_contact = RewTerm(
+        func=mdp.contact_clamp_object,
+        params={
+            "contact_force_threshold": 1.5,
+            "reward_value": 1.0,
+            "gripper_closed_threshold": 0.2,
+        },
+        weight=50.0,
     )
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.0001)
+    # visualize_sphere = RewTerm(func=mdp.visualize_pcd_sphere, weight=0.01)
 
-    # joint_vel = RewTerm(
-    #     func=mdp.joint_vel_l2,
-    #     weight=-1e-4,
-    #     params={"asset_cfg": SceneEntityCfg("robot")},
-    # )
-
-    # grip_object = RewTerm(
-    #     func=mdp.grip_object,
-    #     weight=10,  # 10.0
-    # )
-    contain_object = RewTerm(
-        func=mdp.contain_object,
-        params={"std": 1},
-        weight=10,  # 2.0
-    )
-
-    clamp_object = RewTerm(
-        func=mdp.clamp_object,
-        params={"std": 1},
-        weight=30,  # 2.0
-    )
-    # angle_before_grip = RewTerm(
-    #     func=mdp.angle_before_grip,
-    #     params={"std": 1},
-    #     weight=10,  # 2.0
-    # )
-    gripper_tip_below_ground = RewTerm(
-        func=mdp.gripper_tip_below_ground,
-        params={"threshold": 0.0006, "ee_probe_cfg": SceneEntityCfg("ee_tip_probe_frame")},
-        weight=-200
+    joint_vel = RewTerm(
+        func=mdp.joint_vel_l2,
+        weight=-0.0001,
+        params={"asset_cfg": SceneEntityCfg("robot")},
     )
 
 
@@ -485,12 +509,13 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
 
     def __post_init__(self):
         """Post initialization."""
+
         # general settings
-        self.decimation = 10 # 2 20 48
-        self.episode_length_s = 0.6
+        self.decimation = 2 # 2 20 48
+        self.episode_length_s = 0.2
         # simulation settings
         self.sim.dt = 0.01 # 100Hz
-        self.sim.render_interval =1
+        self.sim.render_interval =2
 
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
