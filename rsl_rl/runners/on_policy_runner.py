@@ -221,7 +221,7 @@ class OnPolicyRunner:
 
                     # Extract intrinsic rewards (only for logging)
                     intrinsic_rewards = self.alg.intrinsic_rewards if self.alg.rnd else None
-
+    
                     # book keeping
                     if self.log_dir is not None:
                         if "episode" in infos:

@@ -51,6 +51,7 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
     finger_frame_1: FrameTransformerCfg = MISSING
     finger_frame_2: FrameTransformerCfg = MISSING
     ee_tip_probe_frame:FrameTransformerCfg = MISSING
+    gripper_peak:FrameTransformerCfg = MISSING
     # target object: will be populated by agent env cfg
     object: RigidObjectCfg | DeformableObjectCfg = MISSING
     # object_id :int=0
@@ -137,7 +138,7 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=((0.0, -1.0, 0.0, 0.0)), convention="opengl"),
         data_types=["distance_to_image_plane"],  # Key change to depth
         spawn=sim_utils.PinholeCameraCfg(
-            focal_length=26.29, focus_distance=400.0, horizontal_aperture=36, vertical_aperture=25.45,
+            focal_length=40, focus_distance=400.0, horizontal_aperture=36, vertical_aperture=25.45,
         ),
         width=200,
         height=150,
@@ -164,6 +165,38 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         debug_vis=False,
         update_period=0.15,
     )
+    # gripper_camera: TiledCameraCfg = TiledCameraCfg(
+    #     prim_path="{ENV_REGEX_NS}/Robot/M5_wrist_link/camera_Link/gripper_camera",
+    #     offset=TiledCameraCfg.OffsetCfg(
+    #         pos=(0.0, -0.00037, -0.00082),
+    #         rot=(0, -1, 0.0, 0.0),
+    #         convention="opengl",
+    #     ),
+    #     data_types=["rgb"],
+    #     spawn=sim_utils.FisheyeCameraCfg(
+    #         focal_length=18.14756,       # Focal Length
+    #         focus_distance=400.0,        # Focus Distance
+    #         f_stop=0.0,                  # fStop
+    #         horizontal_aperture=20.955,  # Horizontal Aperture
+    #         vertical_aperture=15.2908,   # Vertical Aperture
+    #         projection_type="fisheyeRadTanThinPrism",  # Projection Type
+    #         fisheye_nominal_width=1936.0,   # Nominal Width
+    #         fisheye_nominal_height=1216.0,  # Nominal Height
+    #         fisheye_optical_centre_x=970.94244,  # Optical Center X
+    #         fisheye_optical_centre_y=600.37482,  # Optical Center Y
+    #         fisheye_max_fov=200.0,  # Max FOV
+    #         fisheye_polynomial_a=0.25,  # Poly k0
+    #         fisheye_polynomial_b=0.0,   # Poly k1
+    #         fisheye_polynomial_c=0.0,   # Poly k2
+    #         fisheye_polynomial_d=-0.0,  # Poly k3
+    #         fisheye_polynomial_e=0.0,   # Poly k4
+    #         fisheye_polynomial_f=0.0,   # Poly k5
+    #     ),
+    #     width=1936,
+    #     height=1216,
+    #     debug_vis=False,
+    #     update_period=0.15,
+    # )
     contact_forces_left = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/M6_1_leftfinger_link",  # Left gripper finger link
         update_period=0.0,  # Update every step
@@ -351,8 +384,8 @@ class EventCfg:
         mode="reset",
         params={
             "pose_range": {
-                "x": (-0.03, 0.03),
-                "y": (0.0, 0.0),
+                "x": (-0.01, 0.08),
+                "y": (0.0, 0.002),
                 "z": (0.0, 0.0),
                 "roll": (0.0, 0.0),
                 "pitch": (0.0, 0.0),
@@ -392,67 +425,71 @@ class RewardsCfg:
     reaching_object = RewTerm(
         func=mdp.object_ee_distance,
         params={"std": 0.1},
-        weight=10,
+        weight=100,
     )
 
     lifting_object_linear = RewTerm(
         func=mdp.object_is_lifted_linear,
-        params={"minimal_height": 0.01, "max_height": 0.06},
-        weight=100.0,   # 1500  150
+        params={"minimal_height": 0.01, "max_height": 0.1},
+        weight=800.0,   # 1500  150
     )
 
-    lifting_object_linear_contact = RewTerm(
-        func=mdp.object_is_lifted_with_contact,
-        params={
-            "minimal_height": 0.01,
-            "max_height": 0.1,
-            "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
-            "require_both_contacts": True,  # Both fingers must contact
-        },
-        weight=500.0,
-    )
+    # lifting_object_linear_contact = RewTerm(
+    #     func=mdp.object_is_lifted_with_contact,
+    #     params={
+    #         "minimal_height": 0.00,
+    #         "max_height": 0.1,
+    #         "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
+    #         "require_both_contacts": True,  # Both fingers must contact
+    #     },
+    #     weight=1000.0,
+    # )
 
-    # NEW: Point cloud density reward
-    contain_object = RewTerm(
-        func=mdp.pcd_contain_object,
-        params={
-            "density_scale": 1.0,
-            "use_tanh": True,  # Set True for smoother gradients
-            "min_ee_robot_distance": 0.26,
-        },
-        weight=30.0,  # Tune this: 5.0-20.0 depending on importance
-    )
-    # # contain_object = RewTerm(
-    # #     func=mdp.pcd_contain_object1,
-    # #     params={
-    # #         "density_scale": 1.0,
-    # #         "use_tanh": True,  # Set True for smoother gradients
-    # #         "min_ee_robot_distance": 0.26,
-    # #         "valid_object_name": "eye_drops",
-    # #         "excluded_object_names": ["m6_1_leftfinger_link", "m6_2_rightfinger_link", "m5_wrist_link"],
-    # #     },
-    # #     weight=30.0,  # Tune this: 5.0-20.0 depending on importance
-    # # )
+    # # NEW: Point cloud density reward
+    # contain_object = RewTerm(
+    #     func=mdp.pcd_contain_object,
+    #     params={
+    #         "density_scale": 1.0,
+    #         "use_tanh": True,  # Set True for smoother gradients
+    #         "min_ee_robot_distance": 0.26,
+    #         "max_ee_height": 0.06,
+    #     },
+    #     weight=100.0,  # Tune this: 5.0-20.0 depending on importance
+    # )
+    # close_gripper = RewTerm(
+    #     func=mdp.penalty_if_gripper_closed_far,
+    #     params={
+    #         "reach_threshold": 0.02,
+    #         "open_threshold": 0.04,
+    #         "penalty_value": 0.1,
+    #     },
+    #     weight=10
+    # )
+    # early_close = RewTerm(
+    #     func=mdp.close_action_smooth_reward,
+    #     weight=-10
+    # )
 
-    clamp_object_contact = RewTerm(
-        func=mdp.contact_clamp_object,
-        params={
-            "contact_force_threshold": 1.5,
-            "reward_value": 1.0,
-            "gripper_closed_threshold": 0.2,
-        },
-        weight=50.0,
-    )
+
+    # clamp_object_contact = RewTerm(
+    #     func=mdp.contact_clamp_object,
+    #     params={
+    #         "contact_force_threshold": 1.5,
+    #         "reward_value": 1.0,
+    #         "gripper_closed_threshold": 0.2,
+    #     },
+    #     weight=100.0,
+    # )
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.0001)
+    # action_rate = RewTerm(func=mdp.action_l2, weight=-0.1)
     # visualize_sphere = RewTerm(func=mdp.visualize_pcd_sphere, weight=0.01)
 
-    joint_vel = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-0.0001,
-        params={"asset_cfg": SceneEntityCfg("robot")},
-    )
+    # joint_vel = RewTerm(
+    #     func=mdp.joint_vel_l2,
+    #     weight=-0.0001,
+    #     params={"asset_cfg": SceneEntityCfg("robot")},
+    # )
 
 
 @configclass
@@ -461,14 +498,32 @@ class TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
-    # object_dropping = DoneTerm(
-    #     func=mdp.object_dropped_after_lifted,
-        
+    object_dropping = DoneTerm(
+        func=mdp.root_height_below_minimum,
+        params={"minimum_height": 0.0},
+    )
+
+
+    # NEW: Terminate if robot orientation is too tilted
+    # bad_object_orientation = DoneTerm(
+    #     func=mdp.bad_object_orientation,  # Use custom function, not bad_orientation
+    #     params={
+    #         "limit_angle": 1.15,  # 60 degrees
+    #         "object_cfg": SceneEntityCfg("object_pool"),
+    #     },
     # )
-    # gripper_tip_below_ground = DoneTerm(
-    #     func=mdp.gripper_tip_below_ground,
-    #     params={"threshold": 0.008, "ee_probe_cfg": SceneEntityCfg("ee_tip_probe_frame")},
+
+
+    # object_pushed = DoneTerm(
+    #     func=mdp.object_pushed_away,
+    #     params={
+    #         "x_limits": (0.24, 0.44),
+    #         "y_tolerance": 0.08,
+    #         "object_cfg": SceneEntityCfg("object_pool"),
+    #         "robot_cfg": SceneEntityCfg("robot")
+    #     },
     # )
+
 
 
 @configclass
@@ -511,14 +566,21 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
 
         # general settings
-        self.decimation = 2 # 2 20 48
-        self.episode_length_s = 0.2
+        self.decimation = 20  # 2 20 48
+        # self.decimation = 20
+        
         # simulation settings
-        self.sim.dt = 0.01 # 100Hz
-        self.sim.render_interval =2
+        self.sim.dt = 0.01# 100Hz
+        self.sim.render_interval =20
+
+        self.episode_length_s = 6*self.decimation* self.sim.dt 
+        # self.episode_length_s = 20
 
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 4
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024
         self.sim.physx.friction_correlation_distance = 0.00625
+        # self.sim.physx.contact_offset = 0.04
+        # self.sim.physx.rest_offset = 0.0
+        # self.sim.physx.solver_type    = "TGS"

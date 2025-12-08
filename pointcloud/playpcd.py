@@ -56,7 +56,7 @@ import numpy as np
 from plyfile import PlyData, PlyElement
 
 # 读取点云，每行 x y z intensity
-points = np.loadtxt("/home/roborock/Downloads/frame(39).txt")
+points = np.loadtxt("/home/roborock/Downloads/frame_sampled2(1).txt")
 xyz = points[:, :3]
 intensity = points[:, 3]
 
@@ -70,7 +70,7 @@ vertex = np.array(
 ply_el = PlyElement.describe(vertex, 'vertex')
 
 # 保存 PLY 文件（ASCII 格式，可改为 binary=True）
-PlyData([ply_el], text=True).write('frame_rot3.ply')
+PlyData([ply_el], text=True).write('frame_1.ply')
 
 print("保存成功：farcube_with_intensity.ply")
 

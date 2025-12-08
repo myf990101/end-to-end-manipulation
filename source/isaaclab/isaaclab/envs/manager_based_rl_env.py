@@ -183,11 +183,12 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         """
         # process actions
         self.action_manager.process_action(action.to(self.device))
+        # print(action[0])
         current_joint_pos = self.scene['robot'].data.joint_pos
 
         # print("joint", current_joint_pos[0] )
         # print("actions11 : ",action[0])
-        goal = current_joint_pos[:, [0, 1]] + action[:, [0, 1]]
+        # goal = current_joint_pos[:, [3, 5]] + action[:, [0, 1]]
         
         # print(goal[0],target[0])
         self.recorder_manager.record_pre_step()
@@ -214,16 +215,21 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             if self._sim_step_counter % self.cfg.sim.render_interval == 0 and is_rendering:
                 self.sim.render()
             # update buffers at sim dt
-            # print("ee_data22: ",self.scene["ee_frame"].data.target_pos_w[..., 0, :])
+            # joint_pos = self.scene["robot"].data.joint_pos[:,:]
+            # last_two = joint_pos[0, -2:]
+            # print("last two:", last_two)
             self.scene.update(dt=self.physics_dt)
             # print("ee_data33: ",self.scene["ee_frame"].data.target_pos_w[..., 0, :])
-            
-            # target = self.scene['robot'].data.joint_pos_target
-            # # newly_done = (joint_error < 0.02).all(dim=1)  # [num_envs], 哪些已经到位
-            # print(goal[0],target[0])
-            # joint_error = torch.abs(self.scene['robot'].data.joint_pos[:, [0, 1]] - goal)
-            # joint_error1 = torch.abs(target[:, [0, 1]] - goal)
-            
+            # current_joint_pos = self.scene['robot'].data.joint_pos
+            # current_joint_pos = current_joint_pos[0][2:4]
+            # # print(current_joint_pos[0])
+            # print(f"joint pos {180*(current_joint_pos/np.pi)}" )
+            # target = self.scene['robot'].data.joint_pos_target[0][2:4]
+            # # # newly_done = (joint_error < 0.02).all(dim=1)  # [num_envs], 哪些已经到位
+            # # print(goal[0],target[0])
+            # joint_error = target-current_joint_pos
+            # # joint_error1 = torch.abs(target[:, [0, 1]] - goal)
+            # print(target-current_joint_pos)
            
             # if torch.all(joint_error1[0]< 0.03):
             #     print("✅ 到位了！1")

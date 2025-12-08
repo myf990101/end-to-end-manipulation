@@ -29,6 +29,7 @@ import importlib
 from isaaclab.pointnet.log.classification.pointnet2_ssg_wo_normals.pointnet2_cls_ssg import get_model as PointNet2ClsMsg
 import open3d as o3d
 import torch.nn.functional as F
+import torchvision
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
@@ -284,7 +285,7 @@ def image(
 
     # obtain the input image
     images = sensor.data.output[data_type]
-   
+    # images = cv2.imread(, cv2.IMREAD_COLOR)
     # image_path = "/home/roborock/下载/2.jpg"
     # img_bgr = cv2.imread(image_path, cv2.IMREAD_COLOR)
     # img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
@@ -476,119 +477,104 @@ class image_features(ManagerTermBase):
         # for example: video transformers
         if self._reset_fn is not None:
             self._reset_fn(self._model, env_ids)
+    def _save_images(self, images: torch.Tensor, step: int, prefix: str = "img"):
+        """Save images to disk for debugging."""
+        import os
+        import cv2
+        import numpy as np
 
-    def depth_to_pointcloud(self,depth_image, fx, fy, cx, cy, rgb_image=None, output_path="pointcloud.ply"):
-        """
-        将深度图转换为点云（可选带颜色）
-        
-        参数:
-            depth_image : np.ndarray
-                深度图（H, W），单位为米。
-            fx, fy, cx, cy : float
-                相机内参。
-            rgb_image : np.ndarray, optional
-                彩色图（H, W, 3），与深度图对齐。
-            output_path : str
-                点云保存路径。
-        """
-        assert len(depth_image.shape) == 2, "深度图必须是单通道 (H, W)"
-        height, width = depth_image.shape
-        u, v = np.meshgrid(np.arange(width), np.arange(height))
-        
-        # 深度图中无效值置0（避免NaN）
-        depth = np.nan_to_num(depth_image, nan=0.0)
-        # depth = (depth.max() - depth)
-        # print(depth_image.dtype)
-        # print("min, max, median:", np.nanmin(depth_image), np.nanmax(depth_image), np.nanmedian(depth_image))
-        # print("non-zero fraction:", np.count_nonzero(~np.isnan(depth_image) & (depth_image!=0)) / depth_image.size)
-        mask = depth > 0  # 有效深度
-        
-        # 反投影到3D空间
-        Z = depth[mask]
-        X = (u[mask] - cx) * Z / fx
-        Y = (v[mask] - cy) * Z / fy
-        points = np.stack((X, -Y, Z), axis=-1)
+        save_dir = "debug_augmentation"
+        os.makedirs(save_dir, exist_ok=True)
 
-        def save_ply(points, colors=None, output_path="pointcloud.ply"):
-            """
-            保存点云为 PLY 文件
-            参数:
-                points: (N, 3) numpy 数组
-                colors: (N, 3) numpy 数组 (0~255 或 0~1)
-                output_path: 输出文件路径
-            """
-            # 创建 open3d 点云对象
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(points)
+        # Save only the first image in the batch
+        img_to_save = images[0]  # Take first image from batch
 
-            if colors is not None:
-                if colors.max() > 1.0:
-                    colors = colors / 255.0  # 归一化到 [0,1]
-                pcd.colors = o3d.utility.Vector3dVector(colors)
+        # Convert from torch tensor to numpy
+        img_np = img_to_save.detach().cpu().numpy()
 
-            # 保存为 PLY 文件
-            o3d.io.write_point_cloud(output_path, pcd)
-            print(f"✅ 点云已保存到: {output_path}")
-        
-        # save_ply(points, colors=None, output_path=output_path.replace(".ply","_0.ply"))
-        theta = np.deg2rad(0.5)
-        R_x = np.array([
-            [1, 0, 0],
-            [0, np.cos(theta), -np.sin(theta)],
-            [0, np.sin(theta),  np.cos(theta)]
-        ])
+        # Check the shape and handle accordingly
+        print(f"Image shape: {img_np.shape}")  # Debug print
 
-        rotated_points = points @ R_x.T
-        # save_ply(rotated_points, colors=None, output_path=output_path.replace(".ply","_1.ply"))
-        # save_ply(points, colors=None, output_path=output_path)
-        # ===== 距离筛选部分 =====
-        points = rotated_points[rotated_points[:,2]<0.16]
-        points = points[points[:,1]>-0.05]
+        # If shape is (C, H, W), convert to (H, W, C)
+        if img_np.ndim == 3 and img_np.shape[0] in [1, 3, 4]:  # Channel first
+            img_np = np.transpose(img_np, (1, 2, 0))
 
-        def voxel_down_sample_fixed(points, voxel_size=2.0, num_points=1024, seed=None):
-            """
-            对点云进行体素下采样，并确保输出固定数量的点。
+        # Ensure values are in [0, 1] range, then convert to [0, 255]
+        img_np = np.clip(img_np, 0, 1)
+        img_np = (img_np * 255).astype(np.uint8)
 
-            参数:
-                points: np.ndarray, shape [N, 3]
-                voxel_size: float, 体素大小
-                num_points: int, 输出固定点数
-                seed: int or None, 随机种子（可选）
+        # Handle different channel counts
+        if img_np.shape[-1] == 3:  # RGB
+            img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+        elif img_np.shape[-1] == 1:  # Grayscale
+            img_bgr = img_np.squeeze(-1)
+        elif img_np.shape[-1] == 4:  # RGBA
+            img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGBA2BGR)
+        else:
+            print(f"Warning: Unexpected channel count {img_np.shape[-1]}, saving as-is")
+            img_bgr = img_np
 
-            返回:
-                down_points: np.ndarray, shape [num_points, 3]
-            """
-            if len(points) == 0:
-                # 返回一个全零点云（或可选 raise）
-                return np.zeros((num_points, 3), dtype=np.float32)
-
-            if seed is not None:
-                np.random.seed(seed)
-
-            decay_rate = voxel_size / 2.0
-            dist = np.linalg.norm(points, axis=1)
-            p = np.exp(-dist / decay_rate)   # 近处概率大
-            p /= p.sum()
-
-            # ✅ 修复点：若点数不足，则允许放回采样
-            replace_flag = len(points) < num_points
-            indices = np.random.choice(len(points), num_points, replace=replace_flag, p=p)
-            down_points = points[indices]
-
-            # ✅ 第二步其实可以省略，但如果你想保持逻辑清晰：
-            N = down_points.shape[0]
-            if N < num_points:
-                extra_indices = np.random.choice(N, num_points - N, replace=True)
-                down_points = np.concatenate([down_points, down_points[extra_indices]], axis=0)
-
-            return down_points
-                
-        points = voxel_down_sample_fixed(points, voxel_size=2.0)
-        # save_ply(points, colors=None, output_path=output_path.replace(".ply","_downsampled8.ply"))
-        return points
-    
-
+        save_path = os.path.join(save_dir, f"{prefix}_step_{step:06d}.png")
+        cv2.imwrite(save_path, img_bgr)
     # GPU-accelerated version for batch processing
+    def _apply_domain_randomization(
+        self, 
+        images: torch.Tensor, 
+        save_debug: bool = False,
+        step_counter: int = 0
+    ) -> torch.Tensor:
+        """
+        Apply domain randomization (Gaussian blur and noise) to images for sim-to-real transfer.
+
+        Args:
+            images: Input images tensor of shape (B, C, H, W) or (B, H, W, C)
+            save_debug: If True, save before/after images
+            step_counter: Current step number for filename
+
+        Returns:
+            Augmented images tensor
+        """
+        # Convert to float if needed and normalize to [0, 1]
+        original_dtype = images.dtype
+        if images.dtype == torch.uint8:
+            images = images.float() / 255.0
+
+        # Ensure tensor is in (B, C, H, W) format for transforms
+        if images.ndim == 4 and images.shape[-1] in [1, 3, 4]:  # (B, H, W, C)
+            images = images.permute(0, 3, 1, 2)
+            was_channels_last = True
+        else:
+            was_channels_last = False
+
+        if save_debug:
+            self._save_images(images, step_counter, prefix="before_aug")
+
+        # Random Gaussian blur
+        # if torch.rand(1).item() < 0.5:  # 50% chance to apply blur
+        kernel_size = int(torch.randint(3, 8, (1,)).item())
+        if kernel_size % 2 == 0:
+            kernel_size += 1  # Ensure odd kernel size
+        sigma = torch.rand(1).item() * 1.5 + 0.5  # Random sigma between 0.5-2.0
+        images = torchvision.transforms.functional.gaussian_blur(
+            images, kernel_size=[kernel_size, kernel_size], sigma=[sigma, sigma]
+        )
+
+        # Random Gaussian noise
+        noise_std = torch.rand(1).item() * 0.03  # Random std between 0-0.03
+        noise = torch.randn_like(images) * noise_std
+        images = torch.clamp(images + noise, 0.0, 1.0)
+
+        if save_debug:
+            self._save_images(images, step_counter, prefix="after_aug")
+
+        # Convert back to original format
+        if was_channels_last:
+            images = images.permute(0, 2, 3, 1)
+
+        if original_dtype == torch.uint8:
+            images = (images * 255.0).byte()
+
+        return images
     def depth_to_pointcloud_batch_gpu(self, depth_batch, fx, fy, cx, cy, num_points=1024, 
                                       save_ply_debug=False, env_id=0, frame_counter=None, save_dir="debug_pointclouds"):
         """GPU-accelerated batch point cloud generation with systematic PLY saving."""
@@ -733,7 +719,10 @@ class image_features(ManagerTermBase):
         if save_ply_debug:
             points_final = result[env_id].cpu().numpy()
             save_ply(points_final, "3_downsampled")
-
+        result = randomize_pointcloud_batch_torch(result,dropout_rate=0.02,outlier_ratio=0.02,outlier_max_offset=0.08,surface_jitter=0.001)
+        if save_ply_debug:
+            points_final = result[env_id].cpu().numpy()
+            save_ply(points_final, "4_random")
         return result
 
 
@@ -748,6 +737,7 @@ class image_features(ManagerTermBase):
         model_name: str = "resnet18",
         model_device: str | None = None,
         inference_kwargs: dict | None = None,
+  
     ) -> torch.Tensor:
         # obtain the images from the sensor
         # image_data = image(
@@ -762,8 +752,13 @@ class image_features(ManagerTermBase):
     # obtain the input image
         images = sensor.data.output[data_type]
         # store the device of the image
+        # images = self._apply_domain_randomization(
+        #     images, 
+        #     save_debug=save_augmentation_debug,
+        #     step_counter=self._frame_counter
+        # )
         image_device = images.device
-       
+
         # forward the images through the model
         features = self._inference_fn(self._model, images, **(inference_kwargs or {}))
 
@@ -774,7 +769,7 @@ class image_features(ManagerTermBase):
         fy = K[1][1]
         cx = K[0][2]
         cy = K[1][2]
-        depth_tensor = depth.squeeze(0).squeeze(-1)  # Keep on GPU, no .cpu().numpy()
+        depth_tensor = depth.squeeze(-1)  # Keep on GPU, no .cpu().numpy()
 
         self._frame_counter += 1
 
@@ -791,26 +786,14 @@ class image_features(ManagerTermBase):
             frame_counter=self._frame_counter,
             save_dir="debug_pointclouds"
         )
-        # pcd= o3d.io.read_point_cloud("/home/roborock/IsaacLab/output1.ply")
-        # points = np.asarray(pcd.points).astype(np.float32)  
-        # # pcd = o3d.io.read_point_cloud("/home/roborock/IsaacLab/batch0.pcd")
-
-        # points = np.asarray(pcd.points)  # shape: [N, 3]
-
-        # # 转成 tensor
-        # points_tensor = torch.from_numpy(points).float().cuda()  # [N, 3]
-
-        # # 扩展 batch 维度
-        # points_tensor = points_tensor.unsqueeze(0)  # [1, N, 3]
-
-        # # 如果模型要求 [B, 3, N] 形状
-        # points_tensor = points_tensor.permute(0, 2, 1)
+        env.point_cloud_cache = batch_points_tensor.detach()
+        env._pcd_cache_step = env.common_step_counter
+        
         pts_input = batch_points_tensor.permute(0, 2, 1).contiguous()
-        # import pdb
-        # pdb.set_trace()
+    
         with torch.no_grad():
             depth_features_batch = self._point_encoder(pts_input)
-        
+   
         
         
         img_feat_norm = torch.nn.functional.normalize(features, p=2, dim=1)
@@ -1040,6 +1023,38 @@ def last_action(env: ManagerBasedEnv, action_name: str | None = None) -> torch.T
 """
 Commands.
 """
+
+
+def randomize_pointcloud_batch_torch(
+    pts, 
+    dropout_rate=0.02, 
+    outlier_ratio=0.015, 
+    outlier_max_offset=0.05, 
+    surface_jitter=0.001
+):
+    B, N, _ = pts.shape
+    device = pts.device
+
+    pts = pts.clone()
+
+    # 1. Dropout
+    # dropout_mask = torch.rand(B, N, device=device) > dropout_rate
+    # pts = pts * dropout_mask.unsqueeze(-1)
+
+    # 2. Outliers（沿 X 轴正方向）
+    num_outliers = max(1, int(outlier_ratio * N))
+
+    for b in range(B):
+        idx = torch.randperm(N, device=device)[:num_outliers].long()  # 确保是 long
+        offset = torch.rand(num_outliers, device=device, dtype=pts.dtype) * outlier_max_offset
+        pts[b].index_add_(0, idx, torch.stack([offset, torch.zeros_like(offset), torch.zeros_like(offset)], dim=1))
+
+
+    jitter = torch.randn_like(pts) * surface_jitter
+    pts = pts + jitter
+
+    return pts
+   
 
 
 def generated_commands(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:

@@ -7,12 +7,14 @@ import torch
 import numpy as np
 import torch, random, numpy as np
 from typing import Optional
+import torch.nn as nn
+import cv2
 seed = 50
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def _prepare_pointnet_model() :
     import torch.nn as nn
@@ -82,16 +84,103 @@ def prepare_input(path):
     points_tensor = points_tensor.permute(0, 2, 1)  
 
     return points_tensor
-input1 = prepare_input("/home/roborock/IsaacLab/frame_rot11.ply")
-input2 = prepare_input("/home/roborock/IsaacLab/debug_pointclouds/env_0/frame_000004_2_filtered.ply")
+def load_image(img_path):
+    # 读取图片
+    img = cv2.imread(img_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # resize 到模型的输入尺寸
+    # img = cv2.resize(img, input_size)
+    # cv2.imwrite('/home/roborock/docker_images_v1.8.x/docker_bushu/sim1.png',img)
+    # HWC -> CHW
+    img = img.transpose(2, 0, 1).astype(np.float32) / 255.0  # 归一化到 [0,1]
+
+    # ResNet ImageNet 预处理
+    mean = np.array([0.485, 0.456, 0.406]).reshape(3,1,1)
+    std  = np.array([0.229, 0.224, 0.225]).reshape(3,1,1)
+    img = (img - mean) / std
+
+    # 增加 batch 维度 (1,3,H,W)
+    img = np.expand_dims(img, axis=0).astype(np.float32)
+    return img
+
+def cosine_similarity(x, y, eps=1e-8):
+    dot = (x * y).sum(dim=-1)
+    norm_x = x.norm(dim=-1)
+    norm_y = y.norm(dim=-1)
+    return dot / (norm_x * norm_y + eps)
+
+input1 = prepare_input("/home/roborock/IsaacLab/frame_1.ply")
+
 _point_encoder = _prepare_pointnet_model().eval()
 with torch.no_grad():
-    features1 = _point_encoder(input1)
-    features2 = _point_encoder(input2)
-    import pdb
-    pdb.set_trace()
+    pc_feature = _point_encoder(input1)
+    print(f"pc_feature{pc_feature}")
+# similarity = cosine_similarity(features1, features2)
+import torch
+import torchvision.models as models
+from torchvision.models import ResNet18_Weights
+import onnxruntime as ort
 
-xyz = torch.randn(1, 3, 1024, device = 'cuda')
+# 1️⃣ 加载预训练模型
+img = load_image("/home/roborock/Downloads/real.png")
+
+img_input = torch.from_numpy(img).to(device)
+model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+model.eval()
+model.to(device)
+res_model = nn.Sequential(*list(model.children())[:-1])
+with torch.no_grad():
+    img_feature = res_model(img_input)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# xyz = torch.randn(1, 3, 1024, device = 'cuda')
 # jit_model =torch.jit.script(_point_encoder,example_inputs=(xyz,))
 # torch.onnx.export(
 #     _point_encoder,
