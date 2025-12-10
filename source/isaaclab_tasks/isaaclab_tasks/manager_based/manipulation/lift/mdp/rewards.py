@@ -192,19 +192,14 @@ def object_ee_distance(
     """Reward the agent for reaching the active object using tanh-kernel."""
     # Get active object positions
     active_pos_w, _ = get_active_object_states(env, object_cfg)
-    # print(f"object position {active_pos_w[0:3]}")
-    
     # Extract the end-effector frame
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
     ee_frame_w = ee_frame.data.target_pos_w[..., 0, :]
-    # print(f"gripper_peak{gripper_peak_w}")
     # Calculate distance between EE and active object
     object_ee_distance = torch.norm(active_pos_w - ee_frame_w, dim=1) 
     # print(object_ee_distance[0])
     joint_pos = env.scene["robot"].data.joint_pos  # (envs, joints)
-    gripper_status = torch.abs(joint_pos[:, -1])
-    gripper_open = gripper_status >0.4
-    mask =gripper_open.float()
+    
     return (1 - torch.tanh(object_ee_distance / std) ) 
 
 def penalty_if_gripper_closed_far(
@@ -467,60 +462,60 @@ def pcd_contain_object(
     # If contact force satisfied, return maximum reward immediately
     max_reward = density_scale if not use_tanh else torch.ones(env.num_envs, device=env.device)
 
-    # if contact_force_satisfied.any():
-    #     reward = torch.where(
-    #         contact_force_satisfied,
-    #         max_reward if isinstance(max_reward, torch.Tensor) else torch.full((env.num_envs,), max_reward, device=env.device),
-    #         torch.zeros(env.num_envs, device=env.device)
-    #     )
-    #     # print("using 3 ")
+    if contact_force_satisfied.any():
+        reward = torch.where(
+            contact_force_satisfied,
+            max_reward if isinstance(max_reward, torch.Tensor) else torch.full((env.num_envs,), max_reward, device=env.device),
+            torch.zeros(env.num_envs, device=env.device)
+        )
+        # print("using 3 ")
 
-    #     # For envs where contact not satisfied, compute density-based reward
-    #     if not contact_force_satisfied.all():
-    #         # Continue with normal logic for non-contact-satisfied envs
-    #         pointcloud, valid = get_cached_pointcloud(env)
-    #         if valid and pointcloud is not None:
-    #             left_finger_pos_w = env.scene["finger_frame_1"].data.target_pos_w[:, 0, :]
-    #             right_finger_pos_w = env.scene["finger_frame_2"].data.target_pos_w[:, 0, :]
+        # For envs where contact not satisfied, compute density-based reward
+        if not contact_force_satisfied.all():
+            # Continue with normal logic for non-contact-satisfied envs
+            pointcloud, valid = get_cached_pointcloud(env)
+            if valid and pointcloud is not None:
+                left_finger_pos_w = env.scene["finger_frame_1"].data.target_pos_w[:, 0, :]
+                right_finger_pos_w = env.scene["finger_frame_2"].data.target_pos_w[:, 0, :]
 
-    #             left_finger_cam = transform_world_to_camera(left_finger_pos_w, env, sensor_cfg_name)
-    #             right_finger_cam = transform_world_to_camera(right_finger_pos_w, env, sensor_cfg_name)
+                left_finger_cam = transform_world_to_camera(left_finger_pos_w, env, sensor_cfg_name)
+                right_finger_cam = transform_world_to_camera(right_finger_pos_w, env, sensor_cfg_name)
 
-    #             sphere_center = (left_finger_cam + right_finger_cam) / 2.0
-    #             finger_distance = torch.norm(left_finger_cam - right_finger_cam, dim=-1)
-    #             sphere_radius = torch.clamp(finger_distance * 0.22, min=0.000)
+                sphere_center = (left_finger_cam + right_finger_cam) / 2.0
+                finger_distance = torch.norm(left_finger_cam - right_finger_cam, dim=-1)
+                sphere_radius = torch.clamp(finger_distance * 0.22, min=0.000)
 
-    #             density, num_points = calculate_pointcloud_density_in_sphere(
-    #                 pointcloud, sphere_center, sphere_radius
-    #             )
+                density, num_points = calculate_pointcloud_density_in_sphere(
+                    pointcloud, sphere_center, sphere_radius
+                )
 
-    #             if use_tanh:
-    #                 density_reward = torch.tanh(density * density_scale * 3.0)
-    #             else:
-    #                 density_reward = density * density_scale
+                if use_tanh:
+                    density_reward = torch.tanh(density * density_scale * 3.0)
+                else:
+                    density_reward = density * density_scale
 
-    #             ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
-    #             ee_w = ee_frame.data.target_pos_w[..., 0, :]
-    #             robot = env.scene[robot_cfg.name]
-    #             robot_base_pos = robot.data.root_pos_w
-    #             ee_robot_distance = torch.norm(ee_w - robot_base_pos, dim=1)
-    #             ee_z_valid = ee_w[:, 2] < max_ee_height
-    #             distance_mask = ee_robot_distance >= min_ee_robot_distance
+                ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+                ee_w = ee_frame.data.target_pos_w[..., 0, :]
+                robot = env.scene[robot_cfg.name]
+                robot_base_pos = robot.data.root_pos_w
+                ee_robot_distance = torch.norm(ee_w - robot_base_pos, dim=1)
+                ee_z_valid = ee_w[:, 2] < max_ee_height
+                distance_mask = ee_robot_distance >= min_ee_robot_distance
 
-    #             left_z = left_sensor.data.net_forces_w[:, 0, 2]
-    #             right_z = right_sensor.data.net_forces_w[:, 0, 2]
-    #             contact_z_valid = (left_z < contact_z_threshold) & (right_z < contact_z_threshold)
+                left_z = left_sensor.data.net_forces_w[:, 0, 2]
+                right_z = right_sensor.data.net_forces_w[:, 0, 2]
+                contact_z_valid = (left_z < contact_z_threshold) & (right_z < contact_z_threshold)
 
-    #             all_conditions_met = distance_mask & contact_z_valid & ee_z_valid & gripper_open
-    #             # print("using 1 ")
-    #             # Update reward for non-contact-satisfied envs
-    #             reward = torch.where(
-    #                 contact_force_satisfied,
-    #                 reward,  # Keep max reward
-    #                 torch.where(all_conditions_met, density_reward, torch.zeros_like(density_reward))
-    #             )
+                all_conditions_met = distance_mask & contact_z_valid & ee_z_valid & gripper_open
+                # print("using 1 ")
+                # Update reward for non-contact-satisfied envs
+                reward = torch.where(
+                    contact_force_satisfied,
+                    reward,  # Keep max reward
+                    torch.where(all_conditions_met, density_reward, torch.zeros_like(density_reward))
+                )
 
-    #     return reward
+        return reward
 
     # 2. If no contact force satisfied, continue with normal density-based logic
     pointcloud, valid = get_cached_pointcloud(env)

@@ -442,18 +442,18 @@ class RewardsCfg:
             "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
             "require_both_contacts": True,  # Both fingers must contact
         },
-        weight=5000.0,
+        weight=500.0,
     )
 
     # # NEW: Point cloud density reward
     contain_object = RewTerm(
-        func=mdp.pcd_contain_object,
-        params={
-            "density_scale": 1.0,
-            "use_tanh": True,  # Set True for smoother gradients
-            "min_ee_robot_distance": 0.26,
-            "max_ee_height": 0.35,
-        },
+        func=mdp.contain_object,
+        # params={
+        #     "density_scale": 1.0,
+        #     "use_tanh": True,  # Set True for smoother gradients
+        #     "min_ee_robot_distance": 0.26,
+        #     "max_ee_height": 0.35,
+        # },
         weight=50.0,  # Tune this: 5.0-20.0 depending on importance
     )
     # close_gripper = RewTerm(
@@ -482,14 +482,14 @@ class RewardsCfg:
     # )
 
     # action penalty
-    # action_rate = RewTerm(func=mdp.action_l2, weight=-0.1)
+    action_rate = RewTerm(func=mdp.action_l2, weight=-0.001)
     # visualize_sphere = RewTerm(func=mdp.visualize_pcd_sphere, weight=0.01)
 
-    # joint_vel = RewTerm(
-    #     func=mdp.joint_vel_l2,
-    #     weight=-0.0001,
-    #     params={"asset_cfg": SceneEntityCfg("robot")},
-    # )
+    joint_vel = RewTerm(
+        func=mdp.joint_vel_l2,
+        weight=-0.0001,
+        params={"asset_cfg": SceneEntityCfg("robot")},
+    )
 
 
 @configclass
@@ -569,11 +569,12 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         self.decimation = 20  # 2 20 48
         # self.decimation = 20
         
+
         # simulation settings
         self.sim.dt = 0.01# 100Hz
-        self.sim.render_interval =20
+        self.sim.render_interval =1
 
-        self.episode_length_s = 6*self.decimation* self.sim.dt 
+        self.episode_length_s = 100*self.decimation* self.sim.dt 
         # self.episode_length_s = 20
 
         self.sim.physx.bounce_threshold_velocity = 0.2
