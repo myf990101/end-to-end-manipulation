@@ -213,7 +213,7 @@ def main():
             # if torch.any(dones):
             #     done_ids = dones.nonzero(as_tuple=False).squeeze(-1).tolist()
             #     print(f"[INFO] Episode(s) done at timestep {timestep}: env_ids={done_ids}")
-            time.sleep(0.2)
+        
         # if args_cli.video:
         #     timestep += 1
             # # Exit the play loop after recording one video

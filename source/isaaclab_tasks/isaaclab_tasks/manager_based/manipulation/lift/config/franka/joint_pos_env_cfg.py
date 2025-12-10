@@ -80,7 +80,7 @@ MY_ROBOT_CFG = ArticulationCfg(
         ),
         "hand": ImplicitActuatorCfg(
             joint_names_expr=["M6_.*"],
-            effort_limit=80,
+            effort_limit=0.5,
             velocity_limit=15,
             stiffness=80,
             damping=4,
@@ -104,21 +104,21 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
         #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
         #     asset_name = "robot", joint_names = ["M[34]"], scale = 1, #use_default_offset = True
         # )
-        # self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
-        #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-        #     asset_name = "robot", 
-        #     joint_names = ["M[0345]"],
-        #     scale={
-        #         # "M0": 0.08,
-        #         "M3": 0.25,
-        #         "M4": 0.25,
-        #         # "M5": 0.08
-        #     }
-        # )
-        self.actions.arm_action = mdp.JointPositionActionCfg(
+        self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
             #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-            asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
+            asset_name = "robot", 
+            joint_names = ["M[0345]"],
+            scale={
+                # "M0": 0.08,
+                "M3": 0.25,
+                "M4": 0.25,
+                # "M5": 0.08
+            }
         )
+        # self.actions.arm_action = mdp.JointPositionActionCfg(
+        #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
+        #     asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
+        # )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             #joint_names=["panda_finger.*"],
@@ -126,7 +126,7 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
             #close_command_expr={"panda_finger_.*": 0.0},
             joint_names=["M6_.*"],
             open_command_expr={"M6_1": 0.65, "M6_2": -0.65},  
-            close_command_expr={"M6_1": 0.00, "M6_2": 0.0},
+            close_command_expr={"M6_1": 0.1, "M6_2": -0.1},
         )
 
 
@@ -183,6 +183,22 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
 
         self.scene.object_pool = RigidObjectCollectionCfg(
             rigid_objects={
+                "bus": RigidObjectCfg(
+                    prim_path="/World/envs/env_.*/bus",
+                    spawn=sim_utils.UsdFileCfg(
+                        usd_path="/home/roborock/Downloads/bus_2.usd",
+                      
+                        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                            solver_position_iteration_count=128,
+                            solver_velocity_iteration_count=64,
+                            disable_gravity=False,
+                        ),
+                        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                            articulation_enabled=False,  # CRITICAL: Disable articulation
+                        ),
+                    ),
+                    init_state=RigidObjectCfg.InitialStateCfg(pos=(0.30, 0.00, 0.018),rot = (0.7071 , 0.0 ,0.0 , 0.7071)),
+                ),
                 # "eye_drops": RigidObjectCfg(
                 #     prim_path="/World/envs/env_.*/eye_drops",
                 #     spawn=sim_utils.UsdFileCfg(
@@ -199,26 +215,26 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
                 #     ),
                 #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.30, 0.005, 0.00),rot = (0.09990482 , 0.0436194 , 0 , 0)),
                 # ),
-                "Object_10": RigidObjectCfg(
-                    prim_path="/World/envs/env_.*/Object_10",
-                    spawn=sim_utils.UsdFileCfg(
-                        usd_path="/home/roborock/Downloads/lego_plane_front_setorigin2.usdc",
-                        # scale=(0.0004, 0.0004, 0.0005),
-                        rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                            solver_position_iteration_count=64,
-                            solver_velocity_iteration_count=32,
-                            disable_gravity=False,
-                        ),
-                        mass_props=sim_utils.MassPropertiesCfg(
-                        mass=0.01,
-                        ),
-                        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-                            articulation_enabled=False,  # CRITICAL: Disable articulation
-                            solver_position_iteration_count=64
-                        ),
-                    ),
-                    init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0, 0.035]),
-                ),
+                # "Object_10": RigidObjectCfg(
+                #     prim_path="/World/envs/env_.*/Object_10",
+                #     spawn=sim_utils.UsdFileCfg(
+                #         usd_path="/home/roborock/Downloads/lego_plane_front_setorigin2.usdc",
+                #         # scale=(0.0004, 0.0004, 0.0005),
+                #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                #             solver_position_iteration_count=128,
+                #             solver_velocity_iteration_count=32,
+                #             disable_gravity=False,
+                #         ),
+                #         mass_props=sim_utils.MassPropertiesCfg(
+                #         mass=0.01,
+                #         ),
+                #         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                #             articulation_enabled=False,  # CRITICAL: Disable articulation
+                #             solver_position_iteration_count=64
+                #         ),
+                #     ),
+                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0, 0.035]),
+                # ),
                 
                 # "object_2": RigidObjectCfg(
                 #     prim_path="/World/envs/env_.*/Object",

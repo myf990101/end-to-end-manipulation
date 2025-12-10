@@ -1,2 +1,4 @@
 /logs/
 /debug_pointclouds/env_0
+/debug_augmentation
+/outputs

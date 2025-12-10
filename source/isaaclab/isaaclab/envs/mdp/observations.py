@@ -657,7 +657,7 @@ class image_features(ManagerTermBase):
         # 构造 4x4 transformation 矩阵 T
         # -----------------------------
         x1 = deg2rad(0.011, device)
-
+    
         c = torch.cos(x1)
         s = torch.sin(x1)
 
@@ -684,10 +684,10 @@ class image_features(ManagerTermBase):
         # mask1 = rotated_points[:, :, 2] < 0.21
         # mask2 = rotated_points[:, :, 1] > -0.0628
         # mask3 = rotated_points[:, :, 1] < 0.0428
-        
-        
+        rand_thresh = np.random.uniform(0.0, 0.02)
+
         mask2 = trans_points[:,:, 0] <=0.42
-        mask3 = trans_points[:,:, 2] >= 0.00
+        mask3 = trans_points[:,:, 2] >= rand_thresh
         # mask4 = trans_points[:,:, 1] <=0.20
         # mask5 = trans_points[:,:, 1] >=-0.20
         mask = mask2 & mask3
@@ -751,12 +751,13 @@ class image_features(ManagerTermBase):
 
     # obtain the input image
         images = sensor.data.output[data_type]
+        images = images[:, 120:, :, :]
         # store the device of the image
-        # images = self._apply_domain_randomization(
-        #     images, 
-        #     save_debug=save_augmentation_debug,
-        #     step_counter=self._frame_counter
-        # )
+        images = self._apply_domain_randomization(
+            images, 
+            save_debug=False,
+            step_counter=self._frame_counter
+        )
         image_device = images.device
 
         # forward the images through the model

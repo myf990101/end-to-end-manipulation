@@ -384,8 +384,8 @@ class EventCfg:
         mode="reset",
         params={
             "pose_range": {
-                "x": (-0.01, 0.08),
-                "y": (0.0, 0.002),
+                "x": (0.0, 0.08),
+                "y": (0.00, 0.004),
                 "z": (0.0, 0.0),
                 "roll": (0.0, 0.0),
                 "pitch": (0.0, 0.0),
@@ -394,26 +394,26 @@ class EventCfg:
             "rigid_asset_cfg": SceneEntityCfg("object_pool"),
         },
     )
-    # randomize_lighting_reset = EventTerm(
-    #     func=mdp.randomize_multiple_sphere_lights,
-    #     mode="reset",
-    #     params={"num_lights": 2},
-    # )
+    randomize_lighting_reset = EventTerm(
+        func=mdp.randomize_multiple_sphere_lights,
+        mode="reset",
+        params={"num_lights": 2},
+    )
     
-    # randomize_floor = EventTerm(
-    #     func=mdp.randomize_floor_texture,
-    #     mode="reset",
-    #     params={
-    #         "texture_txt_path" :"/home/roborock/桌面/floor.txt"
-    #     },
-    # )
-    # randomize_wall = EventTerm(
-    #     func=mdp.randomize_wall_texture,
-    #     mode="reset",
-    #     params={
-    #         "texture_txt_path" :"/home/roborock/桌面/floor.txt"
-    #     },
-    # )
+    randomize_floor = EventTerm(
+        func=mdp.randomize_floor_texture,
+        mode="reset",
+        params={
+            "texture_txt_path" :"/home/roborock/桌面/floor.txt"
+        },
+    )
+    randomize_wall = EventTerm(
+        func=mdp.randomize_wall_texture,
+        mode="reset",
+        params={
+            "texture_txt_path" :"/home/roborock/桌面/floor.txt"
+        },
+    )
 
 
 @configclass
@@ -425,37 +425,37 @@ class RewardsCfg:
     reaching_object = RewTerm(
         func=mdp.object_ee_distance,
         params={"std": 0.1},
-        weight=100,
+        weight=10,
     )
 
-    lifting_object_linear = RewTerm(
-        func=mdp.object_is_lifted_linear,
-        params={"minimal_height": 0.01, "max_height": 0.1},
-        weight=800.0,   # 1500  150
-    )
-
-    # lifting_object_linear_contact = RewTerm(
-    #     func=mdp.object_is_lifted_with_contact,
-    #     params={
-    #         "minimal_height": 0.00,
-    #         "max_height": 0.1,
-    #         "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
-    #         "require_both_contacts": True,  # Both fingers must contact
-    #     },
-    #     weight=1000.0,
+    # lifting_object_linear = RewTerm(
+    #     func=mdp.object_is_lifted_linear,
+    #     params={"minimal_height": 0.01, "max_height": 0.1},
+    #     weight=100.0,   # 1500  150
     # )
+
+    lifting_object_linear_contact = RewTerm(
+        func=mdp.object_is_lifted_with_contact,
+        params={
+            "minimal_height": 0.03,
+            "max_height": 0.35,
+            "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
+            "require_both_contacts": True,  # Both fingers must contact
+        },
+        weight=5000.0,
+    )
 
     # # NEW: Point cloud density reward
-    # contain_object = RewTerm(
-    #     func=mdp.pcd_contain_object,
-    #     params={
-    #         "density_scale": 1.0,
-    #         "use_tanh": True,  # Set True for smoother gradients
-    #         "min_ee_robot_distance": 0.26,
-    #         "max_ee_height": 0.06,
-    #     },
-    #     weight=100.0,  # Tune this: 5.0-20.0 depending on importance
-    # )
+    contain_object = RewTerm(
+        func=mdp.pcd_contain_object,
+        params={
+            "density_scale": 1.0,
+            "use_tanh": True,  # Set True for smoother gradients
+            "min_ee_robot_distance": 0.26,
+            "max_ee_height": 0.35,
+        },
+        weight=50.0,  # Tune this: 5.0-20.0 depending on importance
+    )
     # close_gripper = RewTerm(
     #     func=mdp.penalty_if_gripper_closed_far,
     #     params={
@@ -478,7 +478,7 @@ class RewardsCfg:
     #         "reward_value": 1.0,
     #         "gripper_closed_threshold": 0.2,
     #     },
-    #     weight=100.0,
+    #     weight=50.0,
     # )
 
     # action penalty
