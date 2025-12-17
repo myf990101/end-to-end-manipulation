@@ -185,7 +185,7 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
     #         fisheye_optical_centre_x=970.94244,  # Optical Center X
     #         fisheye_optical_centre_y=600.37482,  # Optical Center Y
     #         fisheye_max_fov=200.0,  # Max FOV
-    #         fisheye_polynomial_a=0.25,  # Poly k0
+    #         fisheye_polynomial_a=0.25,  # Poly k0False
     #         fisheye_polynomial_b=0.0,   # Poly k1
     #         fisheye_polynomial_c=0.0,   # Poly k2
     #         fisheye_polynomial_d=-0.0,  # Poly k3
@@ -384,8 +384,8 @@ class EventCfg:
         mode="reset",
         params={
             "pose_range": {
-                "x": (0.0, 0.08),
-                "y": (0.00, 0.004),
+                "x": (0.00, 0.05),
+                "y": (0.002, 0.006),
                 "z": (0.0, 0.0),
                 "roll": (0.0, 0.0),
                 "pitch": (0.0, 0.0),
@@ -425,14 +425,14 @@ class RewardsCfg:
     reaching_object = RewTerm(
         func=mdp.object_ee_distance,
         params={"std": 0.1},
-        weight=10,
+        weight=40,
     )
 
-    # lifting_object_linear = RewTerm(
-    #     func=mdp.object_is_lifted_linear,
-    #     params={"minimal_height": 0.01, "max_height": 0.1},
-    #     weight=100.0,   # 1500  150
-    # )
+    lifting_object_linear = RewTerm(
+        func=mdp.object_is_lifted_linear,
+        params={"minimal_height": 0.03, "max_height": 0.35},
+        weight=100.0,   # 1500  150
+    )
 
     lifting_object_linear_contact = RewTerm(
         func=mdp.object_is_lifted_with_contact,
@@ -444,18 +444,24 @@ class RewardsCfg:
         },
         weight=500.0,
     )
-
-    # # NEW: Point cloud density reward
     contain_object = RewTerm(
         func=mdp.contain_object,
-        # params={
-        #     "density_scale": 1.0,
-        #     "use_tanh": True,  # Set True for smoother gradients
-        #     "min_ee_robot_distance": 0.26,
-        #     "max_ee_height": 0.35,
-        # },
-        weight=50.0,  # Tune this: 5.0-20.0 depending on importance
+        params={
+            "std" : 1,
+        },
+        weight=30.0,  # Tune this: 5.0-20.0 depending on importance
     )
+    # # NEW: Point cloud density reward
+    # contain_object = RewTerm(
+    #     func=mdp.pcd_contain_object,
+    #     params={
+    #         "density_scale": 1.0,
+    #         "use_tanh": True,  # Set True for smoother gradients
+    #         "min_ee_robot_distance": 0.26,
+    #         "max_ee_height": 0.35,
+    #     },
+    #     weight=50.0,  # Tune this: 5.0-20.0 depending on importance
+    # )
     # close_gripper = RewTerm(
     #     func=mdp.penalty_if_gripper_closed_far,
     #     params={
@@ -472,24 +478,30 @@ class RewardsCfg:
 
 
     # clamp_object_contact = RewTerm(
-    #     func=mdp.contact_clamp_object,
-    #     params={
-    #         "contact_force_threshold": 1.5,
-    #         "reward_value": 1.0,
-    #         "gripper_closed_threshold": 0.2,
-    #     },
-    #     weight=50.0,
+    #     func=mdp.clamp_object,
+    #     params={"std": 1},
+    #     weight=20.0,
     # )
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_l2, weight=-0.001)
+    # action_rate = RewTerm(func=mdp.action_l2, weight=-0.0001)
     # visualize_sphere = RewTerm(func=mdp.visualize_pcd_sphere, weight=0.01)
 
-    joint_vel = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-0.0001,
-        params={"asset_cfg": SceneEntityCfg("robot")},
-    )
+    # joint_vel = RewTerm(
+    #     func=mdp.joint_vel_l2,
+    #     weight=-0.0001,
+    #     params={"asset_cfg": SceneEntityCfg("robot")},
+    # )
+    # slide_penalty = RewTerm(
+    #     func=mdp.penalize_xy_displacement,
+    #     weight= -1.0,  # Negative weight since function returns negative values
+    #     params={
+    #         "penalty_scale": 1000,    # Adjust sensitivity
+    #         "min_height": -0.05,     # Height where penalty is maximum
+    #         "max_height": 0.1,       # Height where penalty becomes zero
+    #         "object_cfg": SceneEntityCfg("object_pool")
+    #     },
+    # )
 
 
 @configclass
@@ -502,7 +514,15 @@ class TerminationsCfg:
         func=mdp.root_height_below_minimum,
         params={"minimum_height": 0.0},
     )
-
+    # gripper_z_force = DoneTerm(
+    #     func=mdp.gripper_z_force_limit,
+    #     params={
+    #       "z_threshold": 30.0,  # Maximum Z-force in Newtons
+    #       "left_sensor_cfg": SceneEntityCfg("contact_forces_left"),
+    #       "right_sensor_cfg": SceneEntityCfg("contact_forces_right"),
+    #       "check_either": True,  # Terminate if either finger exceeds
+    #     },
+    # )
 
     # NEW: Terminate if robot orientation is too tilted
     # bad_object_orientation = DoneTerm(
@@ -574,7 +594,8 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 0.01# 100Hz
         self.sim.render_interval =1
 
-        self.episode_length_s = 100*self.decimation* self.sim.dt 
+
+        self.episode_length_s = 6*self.decimation* self.sim.dt 
         # self.episode_length_s = 20
 
         self.sim.physx.bounce_threshold_velocity = 0.2

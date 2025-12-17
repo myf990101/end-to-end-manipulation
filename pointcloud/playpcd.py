@@ -56,7 +56,7 @@ import numpy as np
 from plyfile import PlyData, PlyElement
 
 # 读取点云，每行 x y z intensity
-points = np.loadtxt("/home/roborock/Downloads/lego_front_ori.txt")
+points = np.loadtxt("/home/roborock/Downloads/frame_sampled2(2).txt")
 xyz = points[:, :3]
 intensity = points[:, 3]
 

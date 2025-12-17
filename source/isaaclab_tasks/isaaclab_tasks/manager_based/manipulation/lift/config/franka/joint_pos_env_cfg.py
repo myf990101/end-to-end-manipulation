@@ -104,21 +104,21 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
         #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
         #     asset_name = "robot", joint_names = ["M[34]"], scale = 1, #use_default_offset = True
         # )
-        self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
-            #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-            asset_name = "robot", 
-            joint_names = ["M[0345]"],
-            scale={
-                # "M0": 0.08,
-                "M3": 0.25,
-                "M4": 0.25,
-                # "M5": 0.08
-            }
-        )
-        # self.actions.arm_action = mdp.JointPositionActionCfg(
+        # self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
         #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-        #     asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
+        #     asset_name = "robot", 
+        #     joint_names = ["M[0345]"],
+        #     scale={
+        #         # "M0": 0.08,
+        #         "M3": 0.25,
+        #         "M4": 0.25,
+        #         # "M5": 0.08
+        #     }
         # )
+        self.actions.arm_action = mdp.JointPositionActionCfg(
+            #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
+            asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
+        )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             #joint_names=["panda_finger.*"],
@@ -126,7 +126,7 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
             #close_command_expr={"panda_finger_.*": 0.0},
             joint_names=["M6_.*"],
             open_command_expr={"M6_1": 0.65, "M6_2": -0.65},  
-            close_command_expr={"M6_1": 0.1, "M6_2": -0.1},
+            close_command_expr={"M6_1": 0.0, "M6_2": 0.0},
         )
 
 

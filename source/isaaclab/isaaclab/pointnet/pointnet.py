@@ -66,7 +66,20 @@ def _prepare_pointnet_model() :
 
 
 # 读取 ply
-pcd = o3d.io.read_point_cloud("/home/roborock/IsaacLab/batch0.pcd")
+pcd = o3d.io.read_point_cloud("/home/roborock/IsaacLab/frame_1.ply")
+
+# 转成 numpy
+points = np.asarray(pcd.points)  # shape: [N, 3]
+
+# 转成 tensor
+points_tensor = torch.from_numpy(points).float().cuda()  # [N, 3]
+
+# 扩展 batch 维度
+points_tensor = points_tensor.unsqueeze(0)  # [1, N, 3]
+
+# 如果模型要求 [B, 3, N] 形状
+points_tensor = points_tensor.permute(0, 2, 1)  
+pcd = o3d.io.read_point_cloud("/home/roborock/IsaacLab/frame_1.ply")
 
 # 转成 numpy
 points = np.asarray(pcd.points)  # shape: [N, 3]
@@ -82,23 +95,24 @@ points_tensor = points_tensor.permute(0, 2, 1)
 _point_encoder = _prepare_pointnet_model().eval()
 with torch.no_grad():
     features = _point_encoder(points_tensor)  # [1, 1024]
+    features2 = _point_encoder(points_tensor2)
     import pdb
     pdb.set_trace()
 print(features)
 xyz = torch.randn(1, 3, 1024, device = 'cuda')
 # jit_model =torch.jit.script(_point_encoder,example_inputs=(xyz,))
-torch.onnx.export(
-    _point_encoder,
-    xyz,  # 用实际点云 shape 作为 dummy input
-    '/home/roborock/IsaacLab/pointnet.onnx',
-    export_params=True,
-    opset_version=18,
-    do_constant_folding=True,
-    input_names=['points'],
-    output_names=['features'],
+# torch.onnx.export(
+#     _point_encoder,
+#     xyz,  # 用实际点云 shape 作为 dummy input
+#     '/home/roborock/IsaacLab/pointnet.onnx',
+#     export_params=True,
+#     opset_version=18,
+#     do_constant_folding=True,
+#     input_names=['points'],
+#     output_names=['features'],
 
-    dynamic_axes=None
-)
+#     dynamic_axes=None
+# )
 # import onnx
 # model = onnx.load("./pointnet.onnx")
 # model = onnx.shape_inference.infer_shapes(model)

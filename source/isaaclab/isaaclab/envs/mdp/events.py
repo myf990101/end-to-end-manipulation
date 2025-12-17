@@ -166,6 +166,37 @@ def randomize_wall_texture(
         # 随机选择一张贴图
         tex = np.random.choice(texture_files)
         shader.GetInput("diffuse_texture").Set(tex)
+        
+def gripper_z_force_limit(
+    env: ManagerBasedEnv,
+    z_threshold: float = 5.0,
+    left_sensor_cfg: SceneEntityCfg = SceneEntityCfg("contact_forces_left"),
+    right_sensor_cfg: SceneEntityCfg = SceneEntityCfg("contact_forces_right"),
+    check_either: bool = True,
+) -> torch.Tensor:
+    
+    left_sensor: ContactSensor = env.scene.sensors[left_sensor_cfg.name]
+    right_sensor: ContactSensor = env.scene.sensors[right_sensor_cfg.name]
+
+    if left_sensor.data.net_forces_w is None or right_sensor.data.net_forces_w is None:
+        return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+
+    # Extract Z-component (index 2) of contact forces
+    left_z_force = torch.abs(left_sensor.data.net_forces_w[:, 0, 2])
+    right_z_force = torch.abs(right_sensor.data.net_forces_w[:, 0, 2])
+
+    # Check if forces exceed threshold
+    left_exceeds = left_z_force > z_threshold
+    right_exceeds = right_z_force > z_threshold
+
+    if check_either:
+        # Terminate if either finger exceeds threshold
+        terminate = left_exceeds | right_exceeds
+    else:
+        # Terminate only if both fingers exceed threshold
+        terminate = left_exceeds & right_exceeds
+
+    return terminate
 def randomize_rigid_body_scale(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor | None,

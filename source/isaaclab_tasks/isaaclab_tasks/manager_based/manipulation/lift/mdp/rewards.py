@@ -105,7 +105,32 @@ def object_is_lifted_linear(
     
     return reward
 
+def penalize_xy_displacement(
+    env: ManagerBasedRLEnv,
+    penalty_scale: float = 1.0,
+    min_height: float = -0.05,
+    max_height: float = 0.1,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object_pool"),
+) -> torch.Tensor:
 
+    active_pos_w, _ = get_active_object_states(env, object_cfg)
+    if not hasattr(env, '_prev_object_xy_pos'):
+        env._prev_object_xy_pos = active_pos_w[:, :2].clone()  # Store only x,y
+        return torch.zeros(env.num_envs, device=env.device)
+
+    # Calculate XY displacement (L2 norm)
+    current_xy = active_pos_w[:, :2]
+    xy_displacement = torch.norm(current_xy - env._prev_object_xy_pos, dim=1)
+    env._prev_object_xy_pos = current_xy.clone()
+
+    current_height = active_pos_w[:, 2]
+
+    mask = current_height < 0.05
+
+    # Calculate penalty
+    penalty = xy_displacement * penalty_scale
+
+    return penalty * mask
 
 def object_is_lifted_with_contact(
     env: ManagerBasedRLEnv,
@@ -192,12 +217,13 @@ def object_ee_distance(
     """Reward the agent for reaching the active object using tanh-kernel."""
     # Get active object positions
     active_pos_w, _ = get_active_object_states(env, object_cfg)
+    # print(active_pos_w[0])
     # Extract the end-effector frame
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
     ee_frame_w = ee_frame.data.target_pos_w[..., 0, :]
     # Calculate distance between EE and active object
     object_ee_distance = torch.norm(active_pos_w - ee_frame_w, dim=1) 
-    # print(object_ee_distance[0])
+    print(object_ee_distance[0])
     joint_pos = env.scene["robot"].data.joint_pos  # (envs, joints)
     
     return (1 - torch.tanh(object_ee_distance / std) ) 
