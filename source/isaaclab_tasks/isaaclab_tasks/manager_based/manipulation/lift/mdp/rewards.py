@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 
-## Help Function to get the states of active object from the object pool
+# ## Help Function to get the states of active object from the object pool
 def get_active_object_states(env: ManagerBasedRLEnv, object_cfg: SceneEntityCfg = SceneEntityCfg("object_pool")):
     """
     Helper function to get states of active objects from object pool.
@@ -40,7 +40,8 @@ def get_active_object_states(env: ManagerBasedRLEnv, object_cfg: SceneEntityCfg 
         raise RuntimeError("active_object_indices not found. Ensure randomize_object_pool_selection has been called.")
     
     active_indices = env.active_object_indices  # (num_envs,)
-    
+    # import pdb
+    # pdb.set_trace()
     # Get all object states: (num_envs, num_objects, state_dim)
     all_pos_w = object_collection.data.object_pos_w  # (num_envs, num_objects, 3)
     all_quat_w = object_collection.data.object_quat_w  # (num_envs, num_objects, 4)
@@ -53,6 +54,7 @@ def get_active_object_states(env: ManagerBasedRLEnv, object_cfg: SceneEntityCfg 
     
     return active_pos_w, active_quat_w
 
+## Help Function to get the states of active object from the object poo
 
 def is_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Penalize terminated episodes that don't correspond to episodic timeouts."""
@@ -201,7 +203,7 @@ def object_is_lifted_with_contact(
     # 7. Only reward lifting when proper contact is detected
     reward = torch.where(
         proper_contact,
-        height_reward*100,  # Give height reward when contact verified
+        height_reward,  # Give height reward when contact verified
         torch.zeros_like(height_reward)  # Zero reward without contact
     )
 
@@ -757,8 +759,8 @@ def pcd_clamp_object(
 def contact_clamp_object(
     env: ManagerBasedRLEnv,
     contact_force_threshold: float = 1.5,
-    reward_value: float = 1.0,
-    gripper_closed_threshold: float = 0.05,
+    reward_value: float = 2.0,
+    gripper_closed_threshold: float = 0.1,
     left_sensor_cfg: SceneEntityCfg = SceneEntityCfg("contact_forces_left"),
     right_sensor_cfg: SceneEntityCfg = SceneEntityCfg("contact_forces_right"),
 ) -> torch.Tensor:
@@ -767,9 +769,9 @@ def contact_clamp_object(
     Simpler version that just checks if grasp is good enough.
     """
     # Check gripper closed
-    joint_positions = env.scene['robot'].data.joint_pos_target
+    joint_positions = env.scene['robot'].data.joint_pos
     gripper_closed = torch.abs(joint_positions[:, 5]) < gripper_closed_threshold
- 
+
     # Get contact forces
     left_sensor = env.scene.sensors[left_sensor_cfg.name]
     right_sensor = env.scene.sensors[right_sensor_cfg.name]
@@ -789,7 +791,7 @@ def contact_clamp_object(
     reward = torch.where(
         gripper_closed & good_grasp,
         torch.ones(env.num_envs, device=env.device) * reward_value,
-        torch.zeros(env.num_envs, device=env.device)
+        -0.1*torch.ones(env.num_envs, device=env.device)
     )
 
     return reward

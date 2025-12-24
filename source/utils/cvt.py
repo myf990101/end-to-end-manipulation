@@ -1,10 +1,31 @@
-import cv2
+import numpy as np
 
-# 读取原图
-img = cv2.imread('/home/roborock/下载/9.png')
+def txt_to_xyz_flat_npy(
+    txt_path: str,
+    npy_path: str,
+):
+    # 1. 读取 txt，取前三列 (N, 3)
+    points = np.loadtxt(txt_path, usecols=(0, 1, 2))
 
-# 调整大小为 150x200
-resized = cv2.resize(img, (128, 128))  # 注意：尺寸是 (宽, 高)
+    assert points.ndim == 2 and points.shape[1] == 3, \
+        f"Expect (N,3), got {points.shape}"
 
-# 保存或显示
-cv2.imwrite('/home/roborock/下载/128*128.png', resized)
+    # 2. 拆分 xyz
+    x = points[:, 0]
+    y = points[:, 1]
+    z = points[:, 2]
+
+    # 3. reorder -> [xxxx yyyy zzzz]
+    reordered = np.concatenate([x, y, z], axis=0)
+
+    # 4. 保存
+    np.save(npy_path, reordered)
+
+    print(f"Saved: {npy_path}")
+    print(f"Points: {points.shape[0]}, Output shape: {reordered.shape}")
+
+
+
+txt_to_xyz_flat_npy('/home/roborock/Downloads/frame_sampled(8).txt','/home/roborock/docker_images_v1.8.x/docker_bushu/f8.npy')
+# txt_to_xyz_flat_npy('/home/roborock/Downloads/fps2.txt','/home/roborock/docker_images_v1.8.x/docker_bushu/fps2.npy')
+# txt_to_xyz_flat_npy('/home/roborock/Downloads/fps3.txt','/home/roborock/docker_images_v1.8.x/docker_bushu/fps3.npy')

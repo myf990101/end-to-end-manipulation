@@ -374,26 +374,32 @@ class EventCfg:
     #         "velocity_range": {},
     #     },
     # )
-    # object_pool_spawn = EventTerm(
-    #     func=mdp.randomize_object_pool_selection,
-    #     mode="startup",
-    #     params={"asset_cfg": SceneEntityCfg("object_pool")},
-    # )
-    reset_object_or_paper_and_position = EventTerm(
-        func=mdp.randomize_object_and_position,
+    object_pool_spawn = EventTerm(
+        func=mdp.randomize_object_pool_selection,
+        mode="startup",
+        params={"asset_cfg": SceneEntityCfg("object_pool")},
+    )
+    reset_object_position = EventTerm(
+        func=mdp.reset_object_pool_state_uniform,
         mode="reset",
         params={
             "pose_range": {
-                "x": (0.00, 0.05),
-                "y": (0.002, 0.006),
-                "z": (0.0, 0.0),
-                "roll": (0.0, 0.0),
-                "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
-            },
-            "rigid_asset_cfg": SceneEntityCfg("object_pool"),
-        },
+                "x": (0.00, 0.07), 
+                "y": (-0.001, 0.003), 
+                # "y": (0.0, 0.0), 
+                "z": (0.0, 0.0), 
+                # "roll": (-0.1, 0.1),    
+                # "pitch": (-0.1, 0.1),   
+                # "yaw": (-0.3, 0.3),    
+                "roll": (0.0, 0.0),    
+                "pitch": (0.0, 0.0),   
+                "yaw": (-0.1, 0.1), 
+            }, 
+            "velocity_range": {}, 
+            "asset_cfg": SceneEntityCfg("object_pool"), 
+        }, 
     )
+
     randomize_lighting_reset = EventTerm(
         func=mdp.randomize_multiple_sphere_lights,
         mode="reset",
@@ -416,93 +422,79 @@ class EventCfg:
     )
 
 
+
 @configclass
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-500.0)
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-10.0)
+    # termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
+
+    # debug_contact = RewTerm(func=mdp.debug_contact_forces, weight=0.01)
 
     reaching_object = RewTerm(
         func=mdp.object_ee_distance,
         params={"std": 0.1},
-        weight=40,
+        # weight=20.0,
+        weight=2.0,
     )
 
     lifting_object_linear = RewTerm(
         func=mdp.object_is_lifted_linear,
-        params={"minimal_height": 0.03, "max_height": 0.35},
-        weight=100.0,   # 1500  150
+        params={"minimal_height": 0.02, "max_height": 0.35},
+        weight=5.0,   # 1500  150
+        # weight=100.0,   # 1500  150
     )
 
+    # NEW: Lifting with contact verification
     lifting_object_linear_contact = RewTerm(
         func=mdp.object_is_lifted_with_contact,
         params={
-            "minimal_height": 0.03,
+            "minimal_height": 0.02,
             "max_height": 0.35,
-            "contact_force_threshold": 0.5,  # 1.5N on Y-axis (based on your data)
+            "contact_force_threshold": 1.5,  # 1.5N on Y-axis (based on your data)
             "require_both_contacts": True,  # Both fingers must contact
         },
-        weight=500.0,
+        # weight=500.0,
+        weight=30.0,
     )
-    contain_object = RewTerm(
-        func=mdp.contain_object,
+
+
+    # NEW: Point cloud density reward
+    pcd_contain_object = RewTerm(
+        func=mdp.pcd_contain_object,
         params={
-            "std" : 1,
+            "density_scale": 1.0,
+            "use_tanh": True,  # Set True for smoother gradients
+            "min_ee_robot_distance": 0.26,
+            "max_ee_height": 0.06,
         },
-        weight=30.0,  # Tune this: 5.0-20.0 depending on importance
+        # weight=20.0,  # Tune this: 5.0-20.0 depending on importance
+        weight=2.0,
     )
-    # # NEW: Point cloud density reward
-    # contain_object = RewTerm(
-    #     func=mdp.pcd_contain_object,
+    # pcd_contain_object = RewTerm(
+    #     func=mdp.contain_object,
     #     params={
-    #         "density_scale": 1.0,
-    #         "use_tanh": True,  # Set True for smoother gradients
-    #         "min_ee_robot_distance": 0.26,
-    #         "max_ee_height": 0.35,
+    #         "std" : 0.1
     #     },
-    #     weight=50.0,  # Tune this: 5.0-20.0 depending on importance
-    # )
-    # close_gripper = RewTerm(
-    #     func=mdp.penalty_if_gripper_closed_far,
-    #     params={
-    #         "reach_threshold": 0.02,
-    #         "open_threshold": 0.04,
-    #         "penalty_value": 0.1,
-    #     },
-    #     weight=10
-    # )
-    # early_close = RewTerm(
-    #     func=mdp.close_action_smooth_reward,
-    #     weight=-10
+    #     # weight=20.0,  # Tune this: 5.0-20.0 depending on importance
+    #     weight=6.0,
     # )
 
+    clamp_object_contact = RewTerm(
+        func=mdp.contact_clamp_object,
+        params={
+            "contact_force_threshold": 1.5,
+            "reward_value": 1.0,
+            "gripper_closed_threshold": 0.2,
+        },
+        # weight=300.0,
+        weight=6.0,
+    )
 
-    # clamp_object_contact = RewTerm(
-    #     func=mdp.clamp_object,
-    #     params={"std": 1},
-    #     weight=20.0,
-    # )
 
     # action penalty
-    # action_rate = RewTerm(func=mdp.action_l2, weight=-0.0001)
-    # visualize_sphere = RewTerm(func=mdp.visualize_pcd_sphere, weight=0.01)
-
-    # joint_vel = RewTerm(
-    #     func=mdp.joint_vel_l2,
-    #     weight=-0.0001,
-    #     params={"asset_cfg": SceneEntityCfg("robot")},
-    # )
-    # slide_penalty = RewTerm(
-    #     func=mdp.penalize_xy_displacement,
-    #     weight= -1.0,  # Negative weight since function returns negative values
-    #     params={
-    #         "penalty_scale": 1000,    # Adjust sensitivity
-    #         "min_height": -0.05,     # Height where penalty is maximum
-    #         "max_height": 0.1,       # Height where penalty becomes zero
-    #         "object_cfg": SceneEntityCfg("object_pool")
-    #     },
-    # )
-
+    # action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.0001)
 
 @configclass
 class TerminationsCfg:
@@ -512,7 +504,7 @@ class TerminationsCfg:
 
     object_dropping = DoneTerm(
         func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.0},
+        params={"minimum_height": 0.001},
     )
     # gripper_z_force = DoneTerm(
     #     func=mdp.gripper_z_force_limit,
@@ -586,16 +578,15 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
 
         # general settings
-        self.decimation = 20  # 2 20 48
+        self.decimation = 20 # 2 20 48
         # self.decimation = 20
         
 
         # simulation settings
         self.sim.dt = 0.01# 100Hz
-        self.sim.render_interval =1
+        self.sim.render_interval = 20
 
-
-        self.episode_length_s = 6*self.decimation* self.sim.dt 
+        self.episode_length_s = 10*self.decimation*self.sim.dt
         # self.episode_length_s = 20
 
         self.sim.physx.bounce_threshold_velocity = 0.2

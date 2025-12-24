@@ -72,7 +72,7 @@ def root_height_below_minimum(
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
-    # print(f"gripper peak{ee_frame[0]}")
+    print(f"gripper peak{ee_frame[0]}")
     return (asset.data.root_pos_w[:, 2] < minimum_height) | (ee_frame.data.target_pos_w[..., 0, 2] <0.0)
 
 

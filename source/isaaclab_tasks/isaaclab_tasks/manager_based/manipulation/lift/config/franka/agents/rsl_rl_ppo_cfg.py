@@ -29,12 +29,27 @@ class LiftCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
         entropy_coef=0.002,
         num_learning_epochs=5,
         num_mini_batches=8,
-        learning_rate=1.0e-4,
+        learning_rate=3.0e-4,
         # learning_rate=1.0e-4,
         schedule="adaptive",
         gamma=0.98,
         lam=0.95,
         desired_kl=0.01,
-        max_grad_norm=1.0,
+        max_grad_norm=0.5,
     )
 print("using fixed")
+#1 phase
+# num_steps_per_env = 8
+# entropy_coef = 0.005
+# desired_kl = 0.02
+# num_learning_epochs = 8
+# init_noise_std = 0.3
+
+
+#2 phase
+# num_steps_per_env = 24
+# entropy_coef = 0.002
+# desired_kl = 0.01
+# num_learning_epochs = 5
+# init_noise_std = 0.2
+

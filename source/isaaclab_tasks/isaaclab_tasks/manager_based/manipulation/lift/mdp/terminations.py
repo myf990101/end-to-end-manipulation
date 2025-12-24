@@ -67,8 +67,8 @@ def root_height_below_minimum(
     asset: RigidObject = env.scene[asset_cfg.name]
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
 
-    return (asset.data.root_pos_w[:, 2] < minimum_height) | (ee_frame.data.target_pos_w[..., 0, 2] <0.0)
-
+    # return (asset.data.root_pos_w[:, 2] < minimum_height) | (ee_frame.data.target_pos_w[..., 0, 2] <0.001)
+    return (ee_frame.data.target_pos_w[..., 0, 2] <0.001)
 # def object_dropped_after_lifted(env, lift_threshold=0.065, drop_threshold=0.018):
 #     obj = env.scene["object"]
 #     heights = obj.data.root_pos_w[:, 2]

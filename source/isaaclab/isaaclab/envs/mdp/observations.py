@@ -623,7 +623,7 @@ class image_features(ManagerTermBase):
         if save_ply_debug:
             points_initial = points[env_id].reshape(-1, 3).cpu().numpy()
             # points_initial[:, 1] += 0.0632
-            save_ply(points_initial, "0_initial")
+            # save_ply(points_initial, "0_initial")
 
         # Apply rotation (0.5 degrees)
         def deg2rad(v, device):
@@ -678,13 +678,13 @@ class image_features(ManagerTermBase):
         # Save Stage 1: After rotation
         if save_ply_debug:
             points_trans = trans_points[env_id].cpu().numpy()
-            save_ply(points_trans, "1_rotated")
+            # save_ply(points_trans, "1_rotated")
 
         # Apply distance filtering
         # mask1 = rotated_points[:, :, 2] < 0.21
         # mask2 = rotated_points[:, :, 1] > -0.0628
         # mask3 = rotated_points[:, :, 1] < 0.0428
-        rand_thresh = np.random.uniform(0.0, 0.02)
+        rand_thresh = np.random.uniform(0.0, 0.01)
 
         mask2 = trans_points[:,:, 0] <=0.42
         mask3 = trans_points[:,:, 2] >= rand_thresh
@@ -694,7 +694,7 @@ class image_features(ManagerTermBase):
         # Save Stage 2: After filtering
         if save_ply_debug:
             points_filtered = trans_points[env_id][mask[env_id]].cpu().numpy()
-            save_ply(points_filtered, "2_filtered")
+            # save_ply(points_filtered, "2_filtered")
 
         # Sample fixed number of points
         sampled_points = []

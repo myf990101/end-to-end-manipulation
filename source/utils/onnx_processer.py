@@ -3,6 +3,8 @@ import numpy as np
 import time
 import onnx
 from onnx import helper, compose, TensorProto
+from onnx import numpy_helper
+
 def set_ir_version(model, ir_version):
     model.ir_version = ir_version
     return model
@@ -49,11 +51,12 @@ graph.node.append(flatten_node)
 # 2. 修改模型输出为 Flatten 输出
 graph.output[0].name = "resnet_flat"
 
+
 # 3. 保存修改后的模型
 onnx.save(resnet, "resnet18_flatten.onnx")
 resnet = onnx.load("/home/roborock/IsaacLab/resnet18_flatten.onnx")
 pointnet = onnx.load("/home/roborock/docker_images_v1.8.x/docker_bushu/pointnet17.onnx")
-ppo = onnx.load("/home/roborock/Downloads/policy1905.onnx")
+ppo = onnx.load("/home/roborock/IsaacLab/logs/rsl_rl/coarse_arm_lift/from_server/exported2/2_obj_no_em_Norm.onnx")
 ppo = onnx.version_converter.convert_version(
     ppo,
     17
@@ -74,7 +77,7 @@ ppo = compose.add_prefix(ppo, prefix="ppo_")
 
 sess_resnet = ort.InferenceSession("/home/roborock/IsaacLab/resnet18_flatten.onnx")
 sess_pointnet = ort.InferenceSession("/home/roborock/docker_images_v1.8.x/docker_bushu/pointnet17.onnx")
-sess_ppo = ort.InferenceSession("/home/roborock/Downloads/policy1905.onnx")
+sess_ppo = ort.InferenceSession("/home/roborock/IsaacLab/logs/rsl_rl/coarse_arm_lift/from_server/exported2/2_obj_no_em_Norm.onnx")
 # 先合并两个特征提取器
 feat_model = compose.merge_models(resnet, pointnet, io_map=[])
 graph = feat_model.graph
@@ -115,7 +118,32 @@ final_model = compose.merge_models(
     ppo,
     io_map=[("fused_feat", ppo.graph.input[0].name)]
 )
-onnx.save(final_model, "final.onnx")
+graph = final_model.graph
+
+# 原 PPO 输出名
+ppo_out = graph.output[0].name
+
+# 常量 0.1
+scale_const = numpy_helper.from_array(
+    np.array(0.1, dtype=np.float32),
+    name="scale_0p1"
+)
+graph.initializer.append(scale_const)
+
+# Mul 节点
+scale_node = helper.make_node(
+    "Mul",
+    inputs=[ppo_out, "scale_0p1"],
+    outputs=["scaled_action"],
+    name="ScaleAction"
+)
+
+graph.node.append(scale_node)
+
+# # 替换 graph 输出
+graph.output[0].name = "scaled_action"
+onnx.save(final_model, "2_obj_yifan1_no_eN_0.1.onnx")
+
 
 # 输入：image + points
 # 输出：img_feat, pc_feat
@@ -142,7 +170,7 @@ print("合并前推理耗时: {:.2f} ms".format((t1-t0)*1000))
 # -------------------
 # 合并后推理
 # -------------------
-sess_final = ort.InferenceSession("final.onnx")
+sess_final = ort.InferenceSession("2_obj_yifan1_no_eN_0.1.onnx")
 
 # warm-up
 for _ in range(5):

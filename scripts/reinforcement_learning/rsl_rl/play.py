@@ -163,7 +163,7 @@ def main():
             # actions = actions.to(device)  # 明确发送到 GPU 上
 
             # print(obs) #输入是RRRRGGGGGBBBBB
-            # print(f"step{timestep} , action {actions}")
+            print(f"step{timestep} , action {actions}")
             print(f"step{timestep} , action {180*(actions/np.pi)}" )
             #############################################################
             # obs_to_save = obs.permute(0, 2, 3, 1)  # back to NHWC

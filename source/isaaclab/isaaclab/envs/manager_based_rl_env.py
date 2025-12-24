@@ -184,7 +184,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         # process actions
         self.action_manager.process_action(action.to(self.device))
         # print(action[0])
-        current_joint_pos = self.scene['robot'].data.joint_pos
+        # current_joint_pos = self.scene['robot'].data.joint_pos[0][2:4]
 
         # print("joint", current_joint_pos[0] )
         # print("actions11 : ",action[0])
@@ -227,7 +227,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             # target = self.scene['robot'].data.joint_pos_target[0][2:4]
             # # # newly_done = (joint_error < 0.02).all(dim=1)  # [num_envs], 哪些已经到位
             # # print(goal[0],target[0])
-            # joint_error = target-current_joint_pos
+            #joint_error = target-current_joint_pos
             # # joint_error1 = torch.abs(target[:, [0, 1]] - goal)
             # print(target-current_joint_pos)
            

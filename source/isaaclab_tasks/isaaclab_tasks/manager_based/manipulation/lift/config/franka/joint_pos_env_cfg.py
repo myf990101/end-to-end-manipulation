@@ -15,6 +15,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 import numpy as np
 import random
+import torch
 
 from isaaclab_tasks.manager_based.manipulation.lift import mdp
 from isaaclab_tasks.manager_based.manipulation.lift.lift_env_cfg import LiftEnvCfg
@@ -104,21 +105,22 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
         #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
         #     asset_name = "robot", joint_names = ["M[34]"], scale = 1, #use_default_offset = True
         # )
-        # self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
-        #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-        #     asset_name = "robot", 
-        #     joint_names = ["M[0345]"],
-        #     scale={
-        #         # "M0": 0.08,
-        #         "M3": 0.25,
-        #         "M4": 0.25,
-        #         # "M5": 0.08
-        #     }
-        # )
-        self.actions.arm_action = mdp.JointPositionActionCfg(
+        self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
             #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
-            asset_name = "robot", joint_names = ["M[34]"], use_default_offset =True
+            asset_name = "robot", 
+            joint_names = ["M[0345]"],
+            scale={
+                # "M0": 0.08,
+                "M3": 0.25,
+                "M4": 0.25,
+                # "M5": 0.08
+            }
         )
+     
+        # self.actions.arm_action = mdp.JointPositionActionCfg(
+        #     #asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
+        #     asset_name = "robot", joint_names=["M3", "M4"]  , use_default_offset =True 
+        # )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             #joint_names=["panda_finger.*"],
@@ -213,8 +215,8 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
                 #             articulation_enabled=False,  # CRITICAL: Disable articulation
                 #         ),
                 #     ),
-                #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.30, 0.005, 0.00),rot = (0.09990482 , 0.0436194 , 0 , 0)),
-                # ),
+                #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.30, 0.005, 0.05),rot = (0.09990482 , 0.0436194 , 0 , 0)),
+                #  ),
                 # "Object_10": RigidObjectCfg(
                 #     prim_path="/World/envs/env_.*/Object_10",
                 #     spawn=sim_utils.UsdFileCfg(
@@ -233,31 +235,56 @@ class CoarseArmCubeLiftEnvCfg(LiftEnvCfg):
                 #             solver_position_iteration_count=64
                 #         ),
                 #     ),
-                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0, 0.035]),
+                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.30, 0, 0.035]),
                 # ),
-                
-                # "object_2": RigidObjectCfg(
-                #     prim_path="/World/envs/env_.*/Object",
-                #     spawn=sim_utils.MultiAssetSpawnerCfg(
-                #         assets_cfg=[
-                #             sim_utils.CuboidCfg(
-                #                 size=(cube_size, cube_size, cube_size),
-                #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.0, 0.0), metallic=0.2),
-                #             ),
-                #             # sim_utils.CuboidCfg(
-                #             #     size=(cube_size, cube_size, cube_size),
-                #             #     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.5, 0.0), metallic=0.2),
-                #             # )
-                #         ],
-                #         random_choice=True,
+                # "Object_9": RigidObjectCfg(
+                #     prim_path="/World/envs/env_.*/Object_9",
+                #     spawn=sim_utils.UsdFileCfg(
+                #         usd_path="/home/roborock/Downloads/yuanhuan.usdc",
+                #         scale=(0.1, 0.1, 0.1),
                 #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                #             solver_position_iteration_count=16, solver_velocity_iteration_count=0
+                #             solver_position_iteration_count=64,
+                #             solver_velocity_iteration_count=32,
+                #             disable_gravity=False,
                 #         ),
-                #         mass_props=sim_utils.MassPropertiesCfg(mass=1),
-                #         collision_props=sim_utils.CollisionPropertiesCfg(),
+                #         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                #             articulation_enabled=False,  # CRITICAL: Disable articulation
+                #         ),
                 #     ),
-                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.31, 0.00, 0], rot=[1, 0, 0, 0]),
-                # )
+                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0.0, 0.001],rot = (0.7071 , 0.0 ,0.0 , 0.7071)),
+                # ),
+                # "object_2": RigidObjectCfg(
+                #     prim_path="/World/envs/env_.*/Object_2",
+                #     spawn=sim_utils.UsdFileCfg(
+                #         usd_path="/home/roborock/Downloads/marker.usd",
+                #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                #             solver_position_iteration_count=32,
+                #             solver_velocity_iteration_count=16,
+                #             disable_gravity=False,
+                #         ),
+                #         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                #             articulation_enabled=False,  # CRITICAL: Disable articulation
+                #         ),
+                #     ),
+                #     init_state=RigidObjectCfg.InitialStateCfg(pos=[0.30, 0.0, 0.01], rot=[0.7071, 0, 0, 0.7071]),
+                # ),
+                "Object_8": RigidObjectCfg(
+                    prim_path="/World/envs/env_.*/Object_8",
+                    spawn=sim_utils.UsdFileCfg(
+                        usd_path="/home/roborock/Downloads/lego_1.usd",
+                        scale=(1.0, 2.0, 1.0),
+                        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                            solver_position_iteration_count=64,
+                            solver_velocity_iteration_count=32,
+                            disable_gravity=False,
+                        ),
+                        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                            articulation_enabled=False,  # CRITICAL: Disable articulation
+                        ),
+                    ),
+                    init_state=RigidObjectCfg.InitialStateCfg(pos=[0.28, 0.005, 0.0], rot=[0.5, 0.5, 0.5, 0.5]),
+                ),
+                
             }
         )
         # Listens to the required transforms

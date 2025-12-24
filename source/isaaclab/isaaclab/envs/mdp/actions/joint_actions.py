@@ -133,7 +133,7 @@ class JointAction(ActionTerm):
         self._raw_actions[:] = actions
         # current_joint_pos = self._asset.data.joint_pos
         # print (f'current_joint_pos:{current_joint_pos}')
-        # print (f'actions:{self._raw_actions}')
+        # print (f'raw actions:{self._raw_actions}')
         # print (f'scale:{self._scale}')
         # apply the affine transformations
         self._processed_actions = self._raw_actions * self._scale + self._offset   #初始代码
